@@ -10,11 +10,9 @@ import {
   Edit,
   Trash2,
   Eye,
-  Heart,
   MessageCircle,
   Calendar,
-  User,
-  Tag
+  User
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';

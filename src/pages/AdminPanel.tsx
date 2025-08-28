@@ -9,12 +9,9 @@ import {
   MessageCircle,
   AlertTriangle,
   Activity,
-  Settings,
   Eye,
   CheckCircle,
-  XCircle,
-  Trash2,
-  Edit
+  XCircle
 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 

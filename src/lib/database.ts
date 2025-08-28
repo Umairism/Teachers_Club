@@ -245,8 +245,8 @@ export class DatabaseService {
     return true;
   }
 
-  async likeArticle(articleId: string, userId: string): Promise<boolean> {
-    // userId parameter reserved for future use (tracking who liked what)
+  async likeArticle(articleId: string, _userId: string): Promise<boolean> {
+    // _userId parameter reserved for future use (tracking who liked what)
     const data = this.getStorage();
     const article = data.articles.find((article: Article) => article.id === articleId);
     if (!article) return false;
@@ -322,8 +322,8 @@ export class DatabaseService {
     return true;
   }
 
-  async likeConfession(confessionId: string, userId: string): Promise<boolean> {
-    // userId parameter reserved for future use (tracking who liked what)
+  async likeConfession(confessionId: string, _userId: string): Promise<boolean> {
+    // _userId parameter reserved for future use (tracking who liked what)
     const data = this.getStorage();
     const confession = data.confessions.find((confession: Confession) => confession.id === confessionId);
     if (!confession) return false;
@@ -541,8 +541,8 @@ export class DatabaseService {
     return reply;
   }
 
-  async likeComment(articleId: string, commentId: string, userId: string): Promise<boolean> {
-    // userId parameter reserved for future use (tracking who liked what)
+  async likeComment(articleId: string, commentId: string, _userId: string): Promise<boolean> {
+    // _userId parameter reserved for future use (tracking who liked what)
     const data = this.getStorage();
     const article = data.articles.find(a => a.id === articleId);
     if (!article) return false;
@@ -670,8 +670,8 @@ export class DatabaseService {
     return reply;
   }
 
-  async likeConfessionComment(confessionId: string, commentId: string, userId: string): Promise<boolean> {
-    // userId parameter reserved for future use (tracking who liked what)
+  async likeConfessionComment(confessionId: string, commentId: string, _userId: string): Promise<boolean> {
+    // _userId parameter reserved for future use (tracking who liked what)
     const data = this.getStorage();
     const confession = data.confessions.find(c => c.id === confessionId);
     if (!confession || !confession.comments) return false;
