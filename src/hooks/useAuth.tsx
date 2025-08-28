@@ -7,6 +7,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => void;
+  updateUser: (userData: User) => Promise<void>;
   loading: boolean;
 }
 
@@ -94,11 +95,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('benchmark_user');
   }, []);
 
+  const updateUser = useCallback(async (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('benchmark_user', JSON.stringify(userData));
+  }, []);
+
   const contextValue: AuthContextType = {
     user,
     login,
     register,
     logout,
+    updateUser,
     loading
   };
 

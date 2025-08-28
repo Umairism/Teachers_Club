@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
-import { Heart } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
-import { db } from '../lib/database';
-import { toast } from 'react-hot-toast';
+import React from 'react';
+import { ReactionButton } from './ReactionButton';
 
 interface LikeButtonProps {
   type: 'article' | 'confession';
@@ -19,50 +16,26 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
   onLikeUpdate,
   className = '' 
 }) => {
-  const { user } = useAuth();
-  const [likes, setLikes] = useState(initialLikes);
-  const [isLiking, setIsLiking] = useState(false);
-
-  const handleLike = async () => {
-    if (!user) {
-      toast.error('Please log in to like this content');
-      return;
-    }
-
-    if (isLiking) return;
-
-    setIsLiking(true);
-    try {
-      if (type === 'article') {
-        await db.likeArticle(itemId, user.id);
-      } else {
-        await db.likeConfession(itemId, user.id);
-      }
-      
-      const newLikes = likes + 1;
-      setLikes(newLikes);
-      onLikeUpdate?.(newLikes);
-      toast.success('Thanks for the like! ❤️');
-    } catch (error) {
-      console.error('Error liking content:', error);
-      toast.error('Failed to like content');
-    } finally {
-      setIsLiking(false);
-    }
-  };
-
+  // Legacy component - now uses new reaction system
+  // Maps old "likes" to new "heart" reactions for backwards compatibility
+  const targetType = type === 'article' ? 'article' : 'confession';
+  
   return (
-    <button
-      onClick={handleLike}
-      disabled={!user || isLiking}
-      className={`flex items-center space-x-1 text-gray-500 hover:text-red-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-    >
-      <Heart 
-        className={`h-4 w-4 transition-all duration-200 ${
-          isLiking ? 'scale-110 text-red-500' : ''
-        }`} 
+    <div className={className}>
+      <ReactionButton
+        targetType={targetType}
+        targetId={itemId}
+        initialReactions={{
+          thumbs_up: 0,
+          heart: initialLikes,
+          insightful: 0,
+          boring: 0,
+          total: initialLikes,
+          userReaction: null
+        }}
+        size="sm"
+        showLabels={false}
       />
-      <span className="font-medium">{likes}</span>
-    </button>
+    </div>
   );
 };

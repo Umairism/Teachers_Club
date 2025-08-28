@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/database';
 import { Confession } from '../types';
 import { Comments } from '../components/Comments';
-import { LikeButton } from '../components/LikeButton';
+import { ReactionButton } from '../components/ReactionButton';
 import { 
   MessageCircle, 
   Plus, 
@@ -227,11 +227,11 @@ export function Confessions() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <LikeButton 
-                    type="confession" 
-                    itemId={confession.id} 
-                    initialLikes={confession.likes}
-                    onLikeUpdate={() => loadConfessions()}
+                  <ReactionButton
+                    targetType="confession"
+                    targetId={confession.id}
+                    size="sm"
+                    showLabels={false}
                   />
                   <button
                     onClick={() => setExpandedConfession(expandedConfession === confession.id ? null : confession.id)}

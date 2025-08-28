@@ -1,4 +1,4 @@
-import { User, Article, Confession, Comment, Report, AdminLog, UserPermissions, ConfessionComment } from '../types';
+import { User, Article, Confession, Comment, Report, AdminLog, UserPermissions, ConfessionComment, Reaction, ReactionSummary, REACTION_TYPES } from '../types';
 
 // UUID generator function for browser compatibility
 function generateUUID(): string {
@@ -58,6 +58,7 @@ export class DatabaseService {
     comments: Comment[];
     reports: Report[];
     adminLogs: AdminLog[];
+    reactions: Reaction[];
   } {
     const data = localStorage.getItem(this.storageKey);
     return data ? JSON.parse(data) : {
@@ -66,7 +67,8 @@ export class DatabaseService {
       confessions: [],
       comments: [],
       reports: [],
-      adminLogs: []
+      adminLogs: [],
+      reactions: []
     };
   }
 
@@ -77,6 +79,7 @@ export class DatabaseService {
     comments: Comment[];
     reports: Report[];
     adminLogs: AdminLog[];
+    reactions: Reaction[];
   }): void {
     localStorage.setItem(this.storageKey, JSON.stringify(data));
   }
@@ -685,6 +688,82 @@ export class DatabaseService {
 
     console.log('Confession comment not found:', commentId);
     return false;
+  }
+
+  // Enhanced Reaction System
+  async getReactions(targetType: 'article' | 'confession' | 'comment', targetId: string, userId?: string): Promise<ReactionSummary> {
+    const data = this.getStorage();
+    const reactions = data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
+    
+    const summary: ReactionSummary = {
+      thumbs_up: reactions.filter(r => r.type === 'thumbs_up').length,
+      heart: reactions.filter(r => r.type === 'heart').length,
+      insightful: reactions.filter(r => r.type === 'insightful').length,
+      boring: reactions.filter(r => r.type === 'boring').length,
+      total: reactions.length,
+      userReaction: null
+    };
+
+    if (userId) {
+      const userReaction = reactions.find(r => r.userId === userId);
+      summary.userReaction = userReaction?.type || null;
+    }
+
+    return summary;
+  }
+
+  async toggleReaction(
+    targetType: 'article' | 'confession' | 'comment',
+    targetId: string,
+    userId: string,
+    reactionType: keyof typeof REACTION_TYPES
+  ): Promise<ReactionSummary> {
+    const data = this.getStorage();
+    
+    // Find existing reaction by this user for this target
+    const existingReactionIndex = data.reactions.findIndex(
+      r => r.targetType === targetType && r.targetId === targetId && r.userId === userId
+    );
+
+    if (existingReactionIndex !== -1) {
+      const existingReaction = data.reactions[existingReactionIndex];
+      
+      if (existingReaction.type === reactionType) {
+        // Remove reaction if same type
+        data.reactions.splice(existingReactionIndex, 1);
+      } else {
+        // Update reaction type
+        data.reactions[existingReactionIndex] = {
+          ...existingReaction,
+          type: reactionType,
+          createdAt: new Date().toISOString()
+        };
+      }
+    } else {
+      // Add new reaction
+      const newReaction: Reaction = {
+        id: generateUUID(),
+        userId,
+        targetType,
+        targetId,
+        type: reactionType,
+        createdAt: new Date().toISOString()
+      };
+      data.reactions.push(newReaction);
+    }
+
+    this.setStorage(data);
+    return this.getReactions(targetType, targetId, userId);
+  }
+
+  async getUserReactions(userId: string): Promise<Reaction[]> {
+    const data = this.getStorage();
+    return data.reactions.filter(r => r.userId === userId);
+  }
+
+  async getReactionsByTarget(targetType: 'article' | 'confession' | 'comment', targetId: string): Promise<Reaction[]> {
+    const data = this.getStorage();
+    return data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
   }
 }
 

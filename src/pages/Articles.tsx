@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { ReactionButton } from '../components/ReactionButton';
 
 export function Articles() {
   const { user } = useAuth();
@@ -204,11 +205,11 @@ export function Articles() {
                   <div className="flex items-center space-x-4">
                     <span className="flex items-center">
                       <Eye className="h-4 w-4 mr-1" />
-                      {article.likes}
+                      {article.views || 0} views
                     </span>
                     <span className="flex items-center">
                       <MessageCircle className="h-4 w-4 mr-1" />
-                      {article.comments.length}
+                      {article.comments.length} comments
                     </span>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -218,6 +219,16 @@ export function Articles() {
                   }`}>
                     {article.status}
                   </span>
+                </div>
+
+                {/* Enhanced Reaction System */}
+                <div className="mb-4">
+                  <ReactionButton
+                    targetType="article"
+                    targetId={article.id}
+                    size="sm"
+                    showLabels={true}
+                  />
                 </div>
 
                 {/* Author & Date */}

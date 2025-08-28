@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Home, 
   LayoutDashboard, 
@@ -8,14 +9,30 @@ import {
   LogOut, 
   User,
   GraduationCap,
-  Shield
+  Shield,
+  Settings,
+  ChevronDown
 } from 'lucide-react';
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -69,19 +86,52 @@ export function Navbar() {
           {/* User Menu */}
           {user ? (
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <span className="hidden sm:block text-gray-700 font-medium">{user.name}</span>
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                    {user.profilePicture ? (
+                      <img 
+                        src={user.profilePicture} 
+                        alt={user.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                  <span className="hidden sm:block text-gray-700 font-medium">{user.name}</span>
+                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="py-1">
+                      <Link
+                        to="/profile/edit"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>Edit Profile</span>
+                      </Link>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logout();
+                        }}
+                        className="flex items-center space-x-2 w-full px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors duration-200"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <button
-                onClick={logout}
-                className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-red-600 transition-colors duration-200"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:block">Logout</span>
-              </button>
             </div>
           ) : (
             <div className="flex items-center space-x-4">

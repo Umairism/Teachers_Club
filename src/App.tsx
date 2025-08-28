@@ -9,6 +9,7 @@ import { Confessions } from './pages/Confessions';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { AdminPanel } from './pages/AdminPanel';
+import { ProfileEdit } from './pages/ProfileEdit';
 import './App.css';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -78,6 +79,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <AdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/profile/edit" 
+            element={
+              <ProtectedRoute>
+                <ProfileEdit />
               </ProtectedRoute>
             } 
           />
