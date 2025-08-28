@@ -24,7 +24,7 @@ export function Login() {
       } else {
         toast.error('Invalid credentials. Please try again.');
       }
-    } catch (error) {
+    } catch {
       toast.error('Login failed. Please try again.');
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ export function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Enter your email"
                 />
               </div>
@@ -83,7 +83,7 @@ export function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Enter your password"
                 />
                 <button
@@ -103,10 +103,12 @@ export function Login() {
             {/* Demo Credentials */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
-              <p className="text-sm text-blue-700">
-                Email: admin@benchmark.edu<br />
-                Password: Any password will work
-              </p>
+              <div className="space-y-1 text-sm text-blue-700">
+                <p><strong>Admin:</strong> admin@teachers-club.edu</p>
+                <p><strong>Teacher:</strong> teacher@teachers-club.edu</p>
+                <p><strong>Student:</strong> student@teachers-club.edu</p>
+                <p className="text-xs text-blue-600 mt-2">Any password will work for demo accounts</p>
+              </div>
             </div>
 
             {/* Submit Button */}

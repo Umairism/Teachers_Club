@@ -77,3 +77,24 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+
+# Additional exclusions for Teacher's Club
+*.tsbuildinfo
+.DS_Store?
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Runtime and temporary files
+.tmp/
+.temp/

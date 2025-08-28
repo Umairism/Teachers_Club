@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
 import { User } from '../types';
 import { db } from '../lib/database';
 
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, _password: string): Promise<boolean> => {
     try {
       const foundUser = await db.getUserByEmail(email);
       if (foundUser) {
@@ -45,12 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Login error:', error);
       return false;
     }
-  };
+  }, []);
 
-  const register = async (userData: RegisterData): Promise<boolean> => {
+  const register = useCallback(async (userData: RegisterData): Promise<boolean> => {
     try {
+      // Define invite codes and their corresponding roles
+      const inviteCodes = {
+        'ADMIN2025': 'admin' as const,
+        'TEACHER2025': 'teacher' as const,
+        'STUDENT2025': 'student' as const,
+        'MODERATOR2025': 'moderator' as const
+      };
+
       // Validate invite code
-      if (userData.inviteCode !== 'BENCHMARK2025') {
+      if (!(userData.inviteCode in inviteCodes)) {
         return false;
       }
 
@@ -60,11 +68,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      // Determine role based on invite code
+      const role = inviteCodes[userData.inviteCode as keyof typeof inviteCodes];
+
       // Create new user
       const newUser = await db.createUser({
         email: userData.email,
         name: userData.name,
-        role: 'user'
+        role: role,
+        bio: '',
+        school: 'Teachers Club Academy'
       });
 
       setUser(newUser);
@@ -74,12 +87,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Registration error:', error);
       return false;
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem('benchmark_user');
-  };
+  }, []);
 
   const contextValue: AuthContextType = {
     user,
@@ -103,3 +116,4 @@ export function useAuth() {
   }
   return context;
 }
+

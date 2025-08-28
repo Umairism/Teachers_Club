@@ -51,12 +51,12 @@ export function Register() {
       });
 
       if (success) {
-        toast.success('Registration successful! Welcome to Benchmark.');
+        toast.success('Registration successful! Welcome to Teacher\'s Club.');
         navigate('/dashboard');
       } else {
         toast.error('Registration failed. Please check your invite code and try again.');
       }
-    } catch (error) {
+    } catch {
       toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
@@ -95,7 +95,7 @@ export function Register() {
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -117,7 +117,7 @@ export function Register() {
                   value={formData.email}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Enter your email"
                 />
               </div>
@@ -139,7 +139,7 @@ export function Register() {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Create a password"
                 />
                 <button
@@ -172,7 +172,7 @@ export function Register() {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Confirm your password"
                 />
                 <button
@@ -205,16 +205,29 @@ export function Register() {
                   value={formData.inviteCode}
                   onChange={handleChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                   placeholder="Enter invite code"
                 />
               </div>
             </div>
 
-            {/* Demo Invite Code */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800 font-medium mb-1">Demo Invite Code:</p>
-              <p className="text-sm text-green-700 font-mono">BENCHMARK2025</p>
+            {/* Demo Invite Codes */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800 font-medium mb-2">Available Invite Codes:</p>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-blue-700">
+                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">ADMIN2025</span> - Admin
+                </div>
+                <div className="text-blue-700">
+                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">TEACHER2025</span> - Teacher
+                </div>
+                <div className="text-blue-700">
+                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">STUDENT2025</span> - Student
+                </div>
+                <div className="text-blue-700">
+                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">MODERATOR2025</span> - Moderator
+                </div>
+              </div>
             </div>
 
             {/* Submit Button */}

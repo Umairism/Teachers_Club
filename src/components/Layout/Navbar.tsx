@@ -8,7 +8,8 @@ import {
   MessageCircle, 
   LogOut, 
   User,
-  GraduationCap
+  GraduationCap,
+  Shield
 } from 'lucide-react';
 
 export function Navbar() {
@@ -23,6 +24,11 @@ export function Navbar() {
     { path: '/articles', label: 'Articles', icon: FileText },
     { path: '/confessions', label: 'Confessions', icon: MessageCircle },
   ];
+
+  // Add admin panel to nav items for users with admin permissions
+  const adminNavItems = user?.permissions?.canManageUsers 
+    ? [...navItems, { path: '/admin', label: 'Admin Panel', icon: Shield }]
+    : navItems;
 
   return (
     <nav className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
@@ -41,7 +47,7 @@ export function Navbar() {
           {/* Navigation Items */}
           {user && (
             <div className="hidden md:flex items-center space-x-1">
-              {navItems.map((item) => {
+              {adminNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link
@@ -101,7 +107,7 @@ export function Navbar() {
       {user && (
         <div className="md:hidden border-t border-white/20">
           <div className="px-4 py-2 space-y-1">
-            {navItems.map((item) => {
+            {adminNavItems.map((item) => {
               const Icon = item.icon;
               return (
                 <Link

@@ -8,6 +8,7 @@ import { Articles } from './pages/Articles';
 import { Confessions } from './pages/Confessions';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { AdminPanel } from './pages/AdminPanel';
 import { db } from './lib/database';
 import './App.css';
 
@@ -75,6 +76,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Confessions />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <AdminPanel />
               </ProtectedRoute>
             } 
           />

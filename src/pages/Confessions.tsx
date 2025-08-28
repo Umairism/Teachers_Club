@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../lib/database';
 import { Confession } from '../types';
+import { Comments } from '../components/Comments';
+import { LikeButton } from '../components/LikeButton';
 import { 
   MessageCircle, 
   Plus, 
-  Heart, 
   Trash2,
   Filter,
   Clock,
   User,
   Lock
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 
 export function Confessions() {
@@ -23,9 +24,14 @@ export function Confessions() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newConfession, setNewConfession] = useState({
     content: '',
-    category: 'general' as 'general' | 'academic' | 'personal' | 'other',
-    isAnonymous: true
+    category: 'general' as const,
+    isAnonymous: true,
+    tags: [] // Add empty tags array
   });
+
+  // Check if user can create confessions (teachers and admins only)
+  const canCreateConfession = user?.role === 'teacher' || user?.role === 'admin';
+  const [expandedConfession, setExpandedConfession] = useState<string | null>(null);
 
   useEffect(() => {
     loadConfessions();
@@ -47,10 +53,18 @@ export function Confessions() {
     e.preventDefault();
     if (!user) return;
 
+    // Only teachers can create confessions
+    if (user.role !== 'teacher' && user.role !== 'admin') {
+      toast.error('Only teachers can create confessions');
+      return;
+    }
+
     try {
       await db.createConfession({
         ...newConfession,
-        authorId: user.id
+        authorId: user.id,
+        tags: [], // Add empty tags array
+        comments: [] // Add empty comments array
       });
 
       toast.success('Confession shared successfully!');
@@ -58,7 +72,8 @@ export function Confessions() {
       setNewConfession({
         content: '',
         category: 'general',
-        isAnonymous: true
+        isAnonymous: true,
+        tags: []
       });
       loadConfessions();
     } catch (error) {
@@ -70,12 +85,27 @@ export function Confessions() {
   const handleDeleteConfession = async (confessionId: string) => {
     if (!user) return;
     
-    const success = await db.deleteConfession(confessionId, user.id);
-    if (success) {
-      toast.success('Confession deleted successfully');
-      loadConfessions();
-    } else {
-      toast.error('Failed to delete confession');
+    const confession = confessions.find(c => c.id === confessionId);
+    if (!confession) return;
+
+    // Check permissions - Admin, moderators, or confession author can delete
+    const canDelete = user.permissions.canDeleteContent || 
+                     user.permissions.canModerateContent || 
+                     user.id === confession.authorId;
+    
+    if (!canDelete) {
+      toast.error('You do not have permission to delete this confession');
+      return;
+    }
+
+    if (window.confirm('Are you sure you want to delete this confession?')) {
+      const success = await db.deleteConfession(confessionId, user.id);
+      if (success) {
+        toast.success('Confession deleted successfully');
+        loadConfessions();
+      } else {
+        toast.error('Failed to delete confession');
+      }
     }
   };
 
@@ -85,7 +115,7 @@ export function Confessions() {
 
   const categories = ['all', 'general', 'academic', 'personal', 'other'];
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: string): string => {
     switch (category) {
       case 'academic': return 'bg-blue-100 text-blue-800';
       case 'personal': return 'bg-purple-100 text-purple-800';
@@ -115,13 +145,20 @@ export function Confessions() {
           <p className="text-gray-600 mb-6">
             Share your thoughts anonymously and connect with others in the community
           </p>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:shadow-lg transition-all duration-200 flex items-center space-x-2 mx-auto"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Share Your Thoughts</span>
-          </button>
+          {canCreateConfession && (
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:shadow-lg transition-all duration-200 flex items-center space-x-2 mx-auto"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Share Your Thoughts</span>
+            </button>
+          )}
+          {!canCreateConfession && (
+            <p className="text-gray-500 italic">
+              Only teachers can share confessions in this community
+            </p>
+          )}
         </div>
 
         {/* Filter */}
@@ -170,11 +207,12 @@ export function Confessions() {
                   </div>
                 </div>
                 
-                {/* Delete button for own confessions */}
-                {user?.id === confession.authorId && (
+                {/* Delete button for own confessions or admins/moderators */}
+                {(user?.id === confession.authorId || user?.role === 'admin' || user?.role === 'moderator') && (
                   <button
                     onClick={() => handleDeleteConfession(confession.id)}
                     className="text-gray-400 hover:text-red-600 transition-colors duration-200"
+                    title={user?.id === confession.authorId ? 'Delete your confession' : 'Moderate confession'}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -189,15 +227,36 @@ export function Confessions() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                 <div className="flex items-center space-x-4">
-                  <button className="flex items-center space-x-2 text-gray-500 hover:text-red-500 transition-colors duration-200">
-                    <Heart className="h-5 w-5" />
-                    <span>{confession.likes}</span>
+                  <LikeButton 
+                    type="confession" 
+                    itemId={confession.id} 
+                    initialLikes={confession.likes}
+                    onLikeUpdate={() => loadConfessions()}
+                  />
+                  <button
+                    onClick={() => setExpandedConfession(expandedConfession === confession.id ? null : confession.id)}
+                    className="flex items-center space-x-1 text-gray-500 hover:text-purple-600 transition-colors"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    <span>{confession.comments?.length || 0}</span>
                   </button>
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(confession.category)}`}>
                     {confession.category}
                   </span>
                 </div>
               </div>
+
+              {/* Expanded Comments Section */}
+              {expandedConfession === confession.id && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <Comments
+                    type="confession"
+                    itemId={confession.id}
+                    comments={confession.comments || []}
+                    onCommentsUpdate={loadConfessions}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
