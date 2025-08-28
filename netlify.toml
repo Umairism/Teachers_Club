@@ -1,0 +1,47 @@
+[build]
+  # Build command for your React app
+  command = "npm run build"
+  
+  # Directory where your built files are located
+  publish = "dist"
+
+[build.environment]
+  # Node.js version to use for building
+  NODE_VERSION = "18"
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Security headers
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Cache headers for static assets
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    # Don't cache the main HTML file
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    # Cache static assets for a year
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Redirect rules (backup to _redirects file)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Optional: Custom error pages
+# [[redirects]]
+#   from = "/404"
+#   to = "/index.html"
+#   status = 404
