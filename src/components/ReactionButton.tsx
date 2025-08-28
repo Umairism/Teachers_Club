@@ -43,7 +43,15 @@ export function ReactionButton({
       const reactionData = await db.getReactions(targetType, targetId, user?.id);
       setReactions(reactionData);
     } catch (error) {
-      console.error('Failed to load reactions:', error);
+      // Fallback to empty reaction data if loading fails
+      setReactions({
+        thumbs_up: 0,
+        heart: 0,
+        insightful: 0,
+        boring: 0,
+        total: 0,
+        userReaction: null
+      });
     }
   };
 
@@ -66,7 +74,8 @@ export function ReactionButton({
       
       setReactions(result);
     } catch (error) {
-      console.error('Failed to toggle reaction:', error);
+      // Re-load reactions to ensure UI is in sync
+      await loadReactions();
       alert('Failed to update reaction. Please try again.');
     } finally {
       setIsLoading(false);

@@ -61,14 +61,17 @@ export class DatabaseService {
     reactions: Reaction[];
   } {
     const data = localStorage.getItem(this.storageKey);
-    return data ? JSON.parse(data) : {
-      users: [],
-      articles: [],
-      confessions: [],
-      comments: [],
-      reports: [],
-      adminLogs: [],
-      reactions: []
+    const parsed = data ? JSON.parse(data) : {};
+    
+    // Ensure all required arrays exist
+    return {
+      users: parsed.users || [],
+      articles: parsed.articles || [],
+      confessions: parsed.confessions || [],
+      comments: parsed.comments || [],
+      reports: parsed.reports || [],
+      adminLogs: parsed.adminLogs || [],
+      reactions: parsed.reactions || []
     };
   }
 
@@ -351,6 +354,11 @@ export class DatabaseService {
   async initializeDemoData(): Promise<void> {
     const data = this.getStorage();
     // Demo data initialization removed for production
+    // But ensure all arrays are properly initialized
+    if (!data.reactions) {
+      data.reactions = [];
+      this.setStorage(data);
+    }
     return;
   }
 
@@ -670,6 +678,13 @@ export class DatabaseService {
   // Enhanced Reaction System
   async getReactions(targetType: 'article' | 'confession' | 'comment', targetId: string, userId?: string): Promise<ReactionSummary> {
     const data = this.getStorage();
+    
+    // Ensure reactions array exists
+    if (!data.reactions) {
+      data.reactions = [];
+      this.setStorage(data);
+    }
+    
     const reactions = data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
     
     const summary: ReactionSummary = {
@@ -696,6 +711,11 @@ export class DatabaseService {
     reactionType: keyof typeof REACTION_TYPES
   ): Promise<ReactionSummary> {
     const data = this.getStorage();
+    
+    // Ensure reactions array exists
+    if (!data.reactions) {
+      data.reactions = [];
+    }
     
     // Find existing reaction by this user for this target
     const existingReactionIndex = data.reactions.findIndex(
@@ -735,11 +755,17 @@ export class DatabaseService {
 
   async getUserReactions(userId: string): Promise<Reaction[]> {
     const data = this.getStorage();
+    if (!data.reactions) {
+      return [];
+    }
     return data.reactions.filter(r => r.userId === userId);
   }
 
   async getReactionsByTarget(targetType: 'article' | 'confession' | 'comment', targetId: string): Promise<Reaction[]> {
     const data = this.getStorage();
+    if (!data.reactions) {
+      return [];
+    }
     return data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
   }
 }
