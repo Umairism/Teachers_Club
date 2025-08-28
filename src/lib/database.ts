@@ -313,7 +313,6 @@ export class DatabaseService {
     const confessionIndex = data.confessions.findIndex((confession: Confession) => confession.id === id);
     
     if (confessionIndex === -1) {
-      console.log('Confession not found:', id);
       return false;
     }
     
@@ -323,7 +322,6 @@ export class DatabaseService {
     const canDelete = confession.authorId === authorId || adminId;
     
     if (!canDelete) {
-      console.log('Permission denied: user cannot delete this confession');
       return false;
     }
     
@@ -334,7 +332,6 @@ export class DatabaseService {
     }
     
     this.setStorage(data);
-    console.log('Confession deleted successfully:', id);
     return true;
   }
 
@@ -513,27 +510,21 @@ export class DatabaseService {
     const data = this.getStorage();
     const article = data.articles.find(a => a.id === articleId);
     if (!article) {
-      console.error('Article not found:', articleId);
       return false;
     }
-
-    console.log('Deleting comment:', { commentId, userId, isAdmin, availableComments: article.comments?.map(c => ({ id: c.id, authorId: c.authorId })) });
 
     // Find and remove comment from main comments
     const commentIndex = article.comments.findIndex(c => c.id === commentId);
     if (commentIndex !== -1) {
       const comment = article.comments[commentIndex];
-      console.log('Found main comment:', { comment: comment.id, authorId: comment.authorId, userId, canDelete: comment.authorId === userId || isAdmin });
       
       if (comment.authorId !== userId && !isAdmin) {
-        console.log('Permission denied: user cannot delete this comment');
         return false;
       }
       
       article.comments.splice(commentIndex, 1);
       article.updatedAt = new Date().toISOString();
       this.setStorage(data);
-      console.log('Main comment deleted successfully');
       return true;
     }
 
@@ -542,22 +533,18 @@ export class DatabaseService {
       const replyIndex = mainComment.replies.findIndex(r => r.id === commentId);
       if (replyIndex !== -1) {
         const reply = mainComment.replies[replyIndex];
-        console.log('Found reply comment:', { reply: reply.id, authorId: reply.authorId, userId, canDelete: reply.authorId === userId || isAdmin });
         
         if (reply.authorId !== userId && !isAdmin) {
-          console.log('Permission denied: user cannot delete this reply');
           return false;
         }
         
         mainComment.replies.splice(replyIndex, 1);
         article.updatedAt = new Date().toISOString();
         this.setStorage(data);
-        console.log('Reply comment deleted successfully');
         return true;
       }
     }
 
-    console.log('Comment not found:', commentId);
     return false;
   }
 
@@ -642,27 +629,21 @@ export class DatabaseService {
     const data = this.getStorage();
     const confession = data.confessions.find(c => c.id === confessionId);
     if (!confession || !confession.comments) {
-      console.error('Confession not found or has no comments:', confessionId);
       return false;
     }
-
-    console.log('Deleting confession comment:', { commentId, userId, isAdmin, availableComments: confession.comments?.map(c => ({ id: c.id, authorId: c.authorId })) });
 
     // Find and remove comment from main comments
     const commentIndex = confession.comments.findIndex(c => c.id === commentId);
     if (commentIndex !== -1) {
       const comment = confession.comments[commentIndex];
-      console.log('Found main confession comment:', { comment: comment.id, authorId: comment.authorId, userId, canDelete: comment.authorId === userId || isAdmin });
       
       if (comment.authorId !== userId && !isAdmin) {
-        console.log('Permission denied: user cannot delete this confession comment');
         return false;
       }
       
       confession.comments.splice(commentIndex, 1);
       confession.updatedAt = new Date().toISOString();
       this.setStorage(data);
-      console.log('Main confession comment deleted successfully');
       return true;
     }
 
@@ -671,22 +652,18 @@ export class DatabaseService {
       const replyIndex = mainComment.replies.findIndex(r => r.id === commentId);
       if (replyIndex !== -1) {
         const reply = mainComment.replies[replyIndex];
-        console.log('Found confession reply comment:', { reply: reply.id, authorId: reply.authorId, userId, canDelete: reply.authorId === userId || isAdmin });
         
         if (reply.authorId !== userId && !isAdmin) {
-          console.log('Permission denied: user cannot delete this confession reply');
           return false;
         }
         
         mainComment.replies.splice(replyIndex, 1);
         confession.updatedAt = new Date().toISOString();
         this.setStorage(data);
-        console.log('Confession reply comment deleted successfully');
         return true;
       }
     }
 
-    console.log('Confession comment not found:', commentId);
     return false;
   }
 

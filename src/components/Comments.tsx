@@ -28,8 +28,6 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set());
-
-  console.log('Comments component - User:', user, 'Comments:', comments?.map(c => ({ id: c.id, authorId: c.authorId })));
   const [loading, setLoading] = useState(false);
 
   const canComment = user && (user.role !== 'student' || type === 'article');
@@ -60,7 +58,6 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
       onCommentsUpdate();
       toast.success('Comment added successfully!');
     } catch (error) {
-      console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
     } finally {
       setLoading(false);
@@ -94,7 +91,6 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
       onCommentsUpdate();
       toast.success('Reply added successfully!');
     } catch (error) {
-      console.error('Error adding reply:', error);
       toast.error('Failed to add reply');
     } finally {
       setLoading(false);
@@ -112,15 +108,12 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
       }
       onCommentsUpdate();
     } catch (error) {
-      console.error('Error liking comment:', error);
       toast.error('Failed to like comment');
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
     if (!user) return;
-
-    console.log('Attempting to delete comment:', commentId, 'User:', user.id, 'Role:', user.role);
 
     if (confirm('Are you sure you want to delete this comment?')) {
       try {
@@ -133,8 +126,6 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
           success = await db.deleteConfessionComment(itemId, commentId, user.id, isAdmin);
         }
         
-        console.log('Delete result:', success);
-        
         if (success) {
           onCommentsUpdate();
           toast.success('Comment deleted successfully!');
@@ -142,7 +133,6 @@ export const Comments: React.FC<CommentsProps> = ({ type, itemId, comments, onCo
           toast.error('You can only delete your own comments');
         }
       } catch (error) {
-        console.error('Error deleting comment:', error);
         toast.error('Failed to delete comment');
       }
     }

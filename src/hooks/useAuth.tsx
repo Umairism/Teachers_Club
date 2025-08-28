@@ -50,12 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (userData: RegisterData): Promise<boolean> => {
     try {
-      // Define invite codes and their corresponding roles
+      // Production invite codes - these should be managed by administrators
+      // In production, these codes should be provided by your institution's admin
       const inviteCodes = {
-        'ADMIN2025': 'admin' as const,
-        'TEACHER2025': 'teacher' as const,
-        'STUDENT2025': 'student' as const,
-        'MODERATOR2025': 'moderator' as const
+        // Production codes will be configured by administrators
+        // Contact your system administrator for valid invite codes
       };
 
       // Validate invite code
