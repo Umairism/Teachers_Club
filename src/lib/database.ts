@@ -307,18 +307,31 @@ export class DatabaseService {
 
   async deleteConfession(id: string, authorId: string, adminId?: string): Promise<boolean> {
     const data = this.getStorage();
-    const index = data.confessions.findIndex((confession: Confession) => 
-      confession.id === id && (confession.authorId === authorId || adminId)
-    );
-    if (index === -1) return false;
+    const confessionIndex = data.confessions.findIndex((confession: Confession) => confession.id === id);
     
-    data.confessions.splice(index, 1);
+    if (confessionIndex === -1) {
+      console.log('Confession not found:', id);
+      return false;
+    }
+    
+    const confession = data.confessions[confessionIndex];
+    
+    // Check permissions: either author deleting own confession, or admin/moderator deleting any
+    const canDelete = confession.authorId === authorId || adminId;
+    
+    if (!canDelete) {
+      console.log('Permission denied: user cannot delete this confession');
+      return false;
+    }
+    
+    data.confessions.splice(confessionIndex, 1);
     
     if (adminId) {
       await this.logAdminAction(adminId, 'DELETE_CONFESSION', 'confession', id, 'Deleted confession');
     }
     
     this.setStorage(data);
+    console.log('Confession deleted successfully:', id);
     return true;
   }
 
@@ -337,81 +350,8 @@ export class DatabaseService {
   // Initialize demo data
   async initializeDemoData(): Promise<void> {
     const data = this.getStorage();
-    if (data.users.length > 0) return; // Already initialized
-
-    // Create demo admin user
-    const adminUser = await this.createUser({
-      email: 'admin@teachers-club.edu',
-      name: 'Admin User',
-      role: 'admin',
-      bio: 'System Administrator',
-      school: 'Teachers Club Academy'
-    });
-
-    // Create demo teacher user
-    const teacherUser = await this.createUser({
-      email: 'teacher@teachers-club.edu',
-      name: 'John Teacher',
-      role: 'teacher',
-      bio: 'Mathematics Teacher',
-      school: 'Teachers Club Academy',
-      subject: 'Mathematics'
-    });
-
-    // Create demo student user
-    const studentUser = await this.createUser({
-      email: 'student@teachers-club.edu',
-      name: 'Jane Student',
-      role: 'student',
-      bio: 'Math enthusiast',
-      school: 'Teachers Club Academy'
-    });
-
-    // Create demo articles
-    await this.createArticle({
-      title: 'Welcome to Teachers Club',
-      content: 'This is a comprehensive platform for educational excellence. Here you can share knowledge, connect with peers, and build a strong learning community. Our platform supports rich content creation, community discussions, and professional development.',
-      excerpt: 'Welcome to our modern educational platform',
-      author: adminUser,
-      authorId: adminUser.id,
-      category: 'announcement',
-      tags: ['welcome', 'introduction', 'platform'],
-      status: 'published',
-      moderatedBy: adminUser.id,
-      moderatedAt: new Date().toISOString()
-    });
-
-    await this.createArticle({
-      title: 'Effective Teaching Strategies in Digital Age',
-      content: 'In today\'s digital landscape, educators must adapt their teaching methods to engage students effectively. This article explores various strategies that have proven successful in online and hybrid learning environments.',
-      excerpt: 'Exploring modern teaching methods for digital classrooms',
-      author: teacherUser,
-      authorId: teacherUser.id,
-      category: 'education',
-      tags: ['teaching', 'digital', 'strategies', 'online-learning'],
-      status: 'published',
-      moderatedBy: adminUser.id,
-      moderatedAt: new Date().toISOString()
-    });
-
-    // Create demo confessions
-    await this.createConfession({
-      content: 'I love the new digital learning environment! It makes studying so much more interactive and engaging.',
-      authorId: studentUser.id,
-      isAnonymous: true,
-      category: 'academic',
-      tags: ['digital-learning', 'positive', 'engagement'],
-      comments: []
-    });
-
-    await this.createConfession({
-      content: 'Sometimes I feel overwhelmed with the amount of content to cover in each semester. Any tips for better time management?',
-      authorId: teacherUser.id,
-      isAnonymous: false,
-      category: 'career',
-      tags: ['time-management', 'teaching', 'stress'],
-      comments: []
-    });
+    // Demo data initialization removed for production
+    return;
   }
 
   // Reports and Moderation
