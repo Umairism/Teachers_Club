@@ -41,7 +41,17 @@ export class SupabaseDatabaseService {
     return data;
   }
 
-  async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin'>): Promise<User> {
+  async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin' | 'permissions'>): Promise<User> {
+    // For now, use a simplified approach that creates a user with basic data
+    const defaultPermissions = {
+      canCreateArticles: userData.role === 'teacher' || userData.role === 'admin' || userData.role === 'moderator',
+      canModerateContent: userData.role === 'admin' || userData.role === 'moderator',
+      canManageUsers: userData.role === 'admin',
+      canAccessAnalytics: userData.role === 'admin' || userData.role === 'moderator',
+      canDeleteContent: userData.role === 'admin' || userData.role === 'moderator',
+      canBanUsers: userData.role === 'admin' || userData.role === 'moderator',
+    };
+
     const { data, error } = await supabase
       .from('users')
       .insert([{
@@ -49,7 +59,6 @@ export class SupabaseDatabaseService {
         name: userData.name,
         role: userData.role,
         is_active: userData.isActive,
-        profile_picture_url: userData.profilePictureUrl,
         bio: userData.bio
       }])
       .select()
@@ -64,10 +73,10 @@ export class SupabaseDatabaseService {
       role: data.role,
       isActive: data.is_active,
       lastLogin: data.last_login,
-      profilePictureUrl: data.profile_picture_url,
       bio: data.bio,
       createdAt: data.created_at,
-      updatedAt: data.updated_at
+      updatedAt: data.updated_at,
+      permissions: defaultPermissions
     };
   }
 

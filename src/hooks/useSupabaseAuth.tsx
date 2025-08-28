@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { supabaseDb } from '../lib/supabase-db';
 import type { User } from '../types';
@@ -55,8 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: session.user.user_metadata?.name || 'User',
             role: 'student',
             isActive: true,
-            profilePictureUrl: null,
-            bio: null
+            bio: undefined
           });
           setUser(newUser);
         }
@@ -72,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });

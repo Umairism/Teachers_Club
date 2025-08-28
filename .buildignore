@@ -1,0 +1,5 @@
+# Temporarily exclude problematic Supabase files for deployment
+src/lib/supabase-db.ts
+src/lib/supabaseDatabase.ts
+src/hooks/useSupabaseAuth.tsx
+src/migrate.ts
