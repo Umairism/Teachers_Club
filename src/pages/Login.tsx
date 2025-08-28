@@ -100,16 +100,18 @@ export function Login() {
               </div>
             </div>
 
-            {/* Demo Credentials */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 font-medium mb-2">Demo Credentials:</p>
-              <div className="space-y-1 text-sm text-blue-700">
-                <p><strong>Admin:</strong> admin@teachers-club.edu</p>
-                <p><strong>Teacher:</strong> teacher@teachers-club.edu</p>
-                <p><strong>Student:</strong> student@teachers-club.edu</p>
-                <p className="text-xs text-blue-600 mt-2">Any password will work for demo accounts</p>
+            {/* Development Demo Credentials - Only show in development */}
+            {import.meta.env.DEV && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 font-medium mb-2">🚧 Development Mode - Demo Credentials:</p>
+                <div className="space-y-1 text-sm text-yellow-700">
+                  <p><strong>Admin:</strong> admin@teachers-club.edu</p>
+                  <p><strong>Teacher:</strong> teacher@teachers-club.edu</p>
+                  <p><strong>Student:</strong> student@teachers-club.edu</p>
+                  <p className="text-xs text-yellow-600 mt-2">Any password will work for demo accounts</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Submit Button */}
             <button
@@ -138,6 +140,9 @@ export function Login() {
               >
                 Create one here
               </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-3">
+              Need help? Contact your administrator for access
             </p>
           </div>
         </div>

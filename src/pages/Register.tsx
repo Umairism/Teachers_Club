@@ -209,26 +209,31 @@ export function Register() {
                   placeholder="Enter invite code"
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Contact your administrator to get an invite code
+              </p>
             </div>
 
-            {/* Demo Invite Codes */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800 font-medium mb-2">Available Invite Codes:</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-blue-700">
-                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">ADMIN2025</span> - Admin
-                </div>
-                <div className="text-blue-700">
-                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">TEACHER2025</span> - Teacher
-                </div>
-                <div className="text-blue-700">
-                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">STUDENT2025</span> - Student
-                </div>
-                <div className="text-blue-700">
-                  <span className="font-mono bg-blue-100 px-2 py-1 rounded">MODERATOR2025</span> - Moderator
+            {/* Development Demo Codes - Only show in development */}
+            {import.meta.env.DEV && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 font-medium mb-2">🚧 Development Mode - Demo Invite Codes:</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-yellow-700">
+                    <span className="font-mono bg-yellow-100 px-2 py-1 rounded">ADMIN2025</span> - Admin
+                  </div>
+                  <div className="text-yellow-700">
+                    <span className="font-mono bg-yellow-100 px-2 py-1 rounded">TEACHER2025</span> - Teacher
+                  </div>
+                  <div className="text-yellow-700">
+                    <span className="font-mono bg-yellow-100 px-2 py-1 rounded">STUDENT2025</span> - Student
+                  </div>
+                  <div className="text-yellow-700">
+                    <span className="font-mono bg-yellow-100 px-2 py-1 rounded">MODERATOR2025</span> - Moderator
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Submit Button */}
             <button
