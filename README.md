@@ -2,15 +2,15 @@
 
 # 🎓 Teacher's Club
 
-**A Modern Professional Education Platform**
+**A Production-Ready Social Learning Platform**
 
-*Empowering educators, students, and administrators through innovative digital collaboration*
+*Empowering educators through real-time collaboration, interactive content, and community engagement*
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/teachers-club)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/Umairism/Teachers_Club)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-18.3.1-61dafb.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5.3-3178c6.svg)](https://typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.4.2-646cff.svg)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-3ecf8e.svg)](https://supabase.com/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4.1-06b6d4.svg)](https://tailwindcss.com/)
 
 [🚀 Live Demo](https://teachers-club-demo.vercel.app) • [📖 Documentation](docs/) • [🐛 Report Bug](https://github.com/Umairism/teachers-club/issues) • [✨ Request Feature](https://github.com/Umairism/teachers-club/issues)
@@ -21,23 +21,23 @@
 
 ## 🌟 Overview
 
-Teacher's Club is a cutting-edge education platform designed to foster meaningful connections between educators, students, and administrators. Built with modern web technologies, it provides a comprehensive digital environment for educational excellence and community engagement.
+Teacher's Club has evolved into a comprehensive social learning platform that brings together educators, students, and administrators in a dynamic digital environment. With full Supabase integration, real-time interactions, and sophisticated social features, it represents the future of educational community platforms.
 
 ### ✨ Key Highlights
 
-- 🔐 **Secure Authentication** with invite-code protection
-- 📱 **Fully Responsive** design for all devices
-- 🎨 **Modern UI/UX** with professional gradients and animations
-- 📊 **Real-time Analytics** and engagement metrics
-- 💭 **Anonymous Community Features** for safe expression
-- 📝 **Rich Content Management** with publishing workflows
-- 🚀 **Lightning Fast** performance with Vite
-- 📦 **Production Ready** with hybrid database support
+- � **Full Supabase Integration** - Production-ready database with real-time capabilities
+- 💬 **Interactive Social Features** - Comments, likes, and real-time engagement
+- � **Advanced Role-Based Access Control** - Granular permissions for all user types  
+- 📱 **Real-Time Collaboration** - Live updates across all users
+- 🎨 **Modern Social UI** - Instagram-style interactions with smooth animations
+- 📊 **Comprehensive Admin Panel** - Full user and content management
+- �️ **Enterprise Security** - Row Level Security (RLS) and data protection
+- ⚡ **High Performance** - Optimized queries and caching strategies
 
 ## 🎯 Features
 
 <details>
-<summary><strong>🏠 Modern Homepage</strong></summary>
+<summary><strong>🏠 Dynamic Homepage</strong></summary>
 
 - **Hero Section**: Eye-catching gradient design with smooth animations
 - **Live Statistics**: Real-time community engagement metrics
@@ -48,6 +48,26 @@ Teacher's Club is a cutting-edge education platform designed to foster meaningfu
 </details>
 
 <details>
+<summary><strong>💬 Social Interaction System</strong></summary>
+
+- **Nested Comments**: Multi-level comment threads with real-time updates
+- **Like System**: Heart-based engagement with user tracking
+- **Real-Time Updates**: Live comment and like synchronization
+- **Permission-Based**: Role-specific interaction capabilities
+- **Moderation Tools**: Admin controls for content management
+
+</details>
+
+<details>
+<summary><strong>🗄️ Production Database</strong></summary>
+
+- **Supabase Integration**: PostgreSQL with real-time subscriptions
+- **Row Level Security**: Enterprise-grade data protection
+- **Migration Scripts**: Easy deployment and schema management
+- **Backup & Recovery**: Automated data protection
+- **Performance Optimized**: Proper indexing and query optimization
+
+</details>
 <summary><strong>📊 Professional Dashboard</strong></summary>
 
 - **Analytics Overview**: Beautiful gradient cards showing key metrics
@@ -103,39 +123,64 @@ Teacher's Club is a cutting-edge education platform designed to foster meaningfu
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/teachers-club.git
-   cd teachers-club
+   git clone https://github.com/Umairism/Teachers_Club.git
+   cd Teachers_Club
    ```
 
 2. **Install dependencies**
    ```bash
    npm install
-   # or
-   yarn install
    ```
 
 3. **Environment Setup**
    ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
+   cp .env.example .env.local
+   # Edit .env.local with your Supabase credentials
    ```
 
-4. **Start development server**
+4. **Supabase Database Setup**
+   ```bash
+   # Run the automated setup script
+   ./setup-supabase.sh
+   
+   # Or manually:
+   # 1. Create a Supabase project at https://supabase.com
+   # 2. Copy your project URL and API keys to .env.local
+   # 3. Run the SQL migration in supabase-migration.sql
+   ```
+
+5. **Start development server**
    ```bash
    npm run dev
-   # or
-   yarn dev
    ```
 
-5. **Open in browser**
+6. **Open in browser**
    ```
    http://localhost:5173
    ```
 
 ### 🎮 Demo Access
 
-- **Invite Code**: `TEACHERS2025`
-- **Demo Account**: `admin@teachers-club.com` (any password)
+Use these invite codes during registration:
+- **Admin**: `ADMIN2025`
+- **Teacher**: `TEACHER2025` 
+- **Student**: `STUDENT2025`
+- **Moderator**: `MODERATOR2025`
+
+### 🗄️ Database Configuration
+
+The platform supports two database modes:
+
+**Development Mode (Default)**
+- Uses localStorage for quick development
+- No external dependencies required
+- Perfect for testing and prototyping
+
+**Production Mode (Supabase)**
+- Real-time database with PostgreSQL
+- Row Level Security (RLS) 
+- Scalable and production-ready
+- Set `USE_SUPABASE=true` in db-config.ts
 
 ## 🛠️ Technology Stack
 
