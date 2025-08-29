@@ -50,84 +50,69 @@ function getUserPermissions(role: User['role']): UserPermissions {
 }
 
 export class DatabaseService {
-  private storageKey = 'teachers_club_data';
-  
-  private getStorage(): {
-    users: User[];
-    articles: Article[];
-    confessions: Confession[];
-    comments: Comment[];
-    reports: Report[];
-    adminLogs: AdminLog[];
-    reactions: Reaction[];
-  } {
-    const data = localStorage.getItem(this.storageKey);
-    const parsed = data ? JSON.parse(data) : {};
-    
-    // Ensure all required arrays exist
-    return {
-      users: parsed.users || [],
-      articles: parsed.articles || [],
-      confessions: parsed.confessions || [],
-      comments: parsed.comments || [],
-      reports: parsed.reports || [],
-      adminLogs: parsed.adminLogs || [],
-      reactions: parsed.reactions || []
-    };
-  }
-
-  private setStorage(data: {
-    users: User[];
-    articles: Article[];
-    confessions: Confession[];
-    comments: Comment[];
-    reports: Report[];
-    adminLogs: AdminLog[];
-    reactions: Reaction[];
-  }): void {
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
-
+  // Log admin actions to Supabase
   private async logAdminAction(adminId: string, action: string, targetType: 'user' | 'article' | 'confession' | 'comment', targetId: string, details: string): Promise<void> {
-    const data = this.getStorage();
-    const log: AdminLog = {
-      id: generateUUID(),
-      adminId,
+    await supabase.from('admin_logs').insert({
+      admin_id: adminId,
       action,
-      targetType,
-      targetId,
+      target_type: targetType,
+      target_id: targetId,
       details,
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString()
+    });
+  }
+
+  // Helper method to map Supabase user data to our User type
+  private mapUserFromDB(dbUser: any): User {
+    return {
+      id: dbUser.id,
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role,
+      createdAt: dbUser.created_at,
+      updatedAt: dbUser.updated_at,
+      avatar: dbUser.profile_picture_url,
+      bio: dbUser.bio,
+      school: dbUser.school,
+      subject: dbUser.subject,
+      designation: dbUser.designation,
+      profilePicture: dbUser.profile_picture_url,
+      isActive: dbUser.is_active,
+      lastLogin: dbUser.last_login,
+      permissions: getUserPermissions(dbUser.role)
     };
-    data.adminLogs.push(log);
-    this.setStorage(data);
   }
 
   // Users
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'permissions' | 'isActive'>): Promise<User> {
-    const data = this.getStorage();
     const now = new Date().toISOString();
-    const user: User = {
-      ...userData,
-      id: generateUUID(),
-      createdAt: now,
-      updatedAt: now,
-      isActive: true,
-      permissions: getUserPermissions(userData.role)
-    };
-    data.users.push(user);
-    this.setStorage(data);
-    return user;
+    const { data, error } = await supabase.from('users').insert({
+      email: userData.email,
+      name: userData.name,
+      role: userData.role,
+      bio: userData.bio || '',
+      school: userData.school || '',
+      subject: userData.subject || '',
+      designation: userData.designation || '',
+      profile_picture_url: userData.profilePicture || userData.avatar,
+      is_active: true,
+      created_at: now,
+      updated_at: now
+    }).select();
+    if (error || !data || !data[0]) throw error || new Error('Failed to create user');
+    return this.mapUserFromDB(data[0]);
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    const data = this.getStorage();
-    return data.users.find((user: User) => user.email === email && user.isActive) || null;
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).eq('is_active', true).single();
+    if (error || !data) return null;
+    return this.mapUserFromDB(data);
   }
 
   async getUserById(id: string): Promise<User | null> {
-    const data = this.getStorage();
-    return data.users.find((user: User) => user.id === id) || null;
+    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    if (error || !data) return null;
+    return this.mapUserFromDB(data);
   }
 
   async getUsers(includeInactive = false): Promise<User[]> {

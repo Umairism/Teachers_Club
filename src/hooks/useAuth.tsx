@@ -50,11 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (userData: RegisterData): Promise<boolean> => {
     try {
-      // Production invite codes - these should be managed by administrators
-      // In production, these codes should be provided by your institution's admin
+      // Invite codes for different user roles
+      // These codes grant access to the Teachers Club platform
       const inviteCodes = {
-        // Production codes will be configured by administrators
-        // Contact your system administrator for valid invite codes
+        'TEACHER2025': 'teacher' as const,
+        'STUDENT2025': 'student' as const,
+        'ADMIN2025': 'admin' as const,
+        'MODERATOR2025': 'moderator' as const,
+        'TEACHERS_CLUB': 'teacher' as const,
+        'EDUCATORS_HUB': 'teacher' as const,
+        'LEARNERS_SPACE': 'student' as const,
+        'ACADEMY_ACCESS': 'student' as const
       };
 
       // Validate invite code
