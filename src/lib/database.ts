@@ -1,4 +1,5 @@
 import { User, Article, Confession, Comment, Report, AdminLog, UserPermissions, ConfessionComment, Reaction, ReactionSummary, REACTION_TYPES } from '../types';
+import { supabase, Tables, TablesInsert, TablesUpdate } from './supabase';
 
 // UUID generator function for browser compatibility
 function generateUUID(): string {
@@ -171,271 +172,358 @@ export class DatabaseService {
 
   // Articles
   async createArticle(articleData: Omit<Article, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'views' | 'comments' | 'isModerated'>): Promise<Article> {
-    const data = this.getStorage();
     const now = new Date().toISOString();
-    const article: Article = {
-      ...articleData,
-      id: generateUUID(),
-      createdAt: now,
-      updatedAt: now,
-      publishedAt: articleData.status === 'published' ? now : undefined,
+    const { data, error } = await supabase.from('articles').insert({
+      title: articleData.title,
+      content: articleData.content,
+      excerpt: articleData.excerpt,
+      category: articleData.category,
+      author_id: articleData.authorId,
+      status: articleData.status || 'draft',
+      is_featured: false,
+      is_moderated: false,
+      image_url: articleData.featuredImage,
+      tags: articleData.tags || [],
       likes: 0,
       views: 0,
-      comments: [],
-      isModerated: false
+      created_at: now,
+      updated_at: now
+    }).select();
+    if (error || !data || !data[0]) throw error || new Error('Failed to create article');
+    return this.mapArticleFromDB(data[0]);
+  }
+
+  // Helper method to map Supabase article data to our Article type
+  private mapArticleFromDB(dbArticle: any): Article {
+    return {
+      id: dbArticle.id,
+      title: dbArticle.title,
+      content: dbArticle.content,
+      excerpt: dbArticle.excerpt,
+      category: dbArticle.category,
+      authorId: dbArticle.author_id,
+      author: {} as User, // Will be populated separately if needed
+      status: dbArticle.status,
+      isModerated: dbArticle.is_moderated,
+      featuredImage: dbArticle.image_url,
+      tags: dbArticle.tags || [],
+      likes: dbArticle.likes,
+      views: dbArticle.views,
+      createdAt: dbArticle.created_at,
+      updatedAt: dbArticle.updated_at,
+      publishedAt: dbArticle.status === 'published' ? dbArticle.updated_at : undefined,
+      comments: []
     };
-    data.articles.push(article);
-    this.setStorage(data);
-    return article;
   }
 
   async getArticles(status?: 'draft' | 'published' | 'archived' | 'under_review'): Promise<Article[]> {
-    const data = this.getStorage();
-    const articles = data.articles || [];
-    return status ? articles.filter((article: Article) => article.status === status) : articles;
+    const query = supabase.from('articles').select('*');
+    if (status) query.eq('status', status);
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(article => this.mapArticleFromDB(article));
   }
 
   async getArticleById(id: string): Promise<Article | null> {
-    const data = this.getStorage();
-    const article = data.articles.find((article: Article) => article.id === id);
-    if (article) {
-      // Increment view count
-      article.views = (article.views || 0) + 1;
-      article.updatedAt = new Date().toISOString();
-      this.setStorage(data);
-    }
-    return article || null;
+    const { data, error } = await supabase.from('articles').select('*').eq('id', id).single();
+    if (error || !data) return null;
+    
+    // Increment view count
+    await supabase.from('articles').update({
+      views: data.views + 1,
+      updated_at: new Date().toISOString()
+    }).eq('id', id);
+    
+    return this.mapArticleFromDB({ ...data, views: data.views + 1 });
   }
 
   async getArticlesByAuthor(authorId: string): Promise<Article[]> {
-    const data = this.getStorage();
-    return data.articles.filter((article: Article) => article.authorId === authorId);
+    const { data, error } = await supabase.from('articles').select('*').eq('author_id', authorId).order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(article => this.mapArticleFromDB(article));
   }
 
   async updateArticle(id: string, updates: Partial<Article>, adminId?: string): Promise<Article | null> {
-    const data = this.getStorage();
-    const index = data.articles.findIndex((article: Article) => article.id === id);
-    if (index === -1) return null;
-    
     const now = new Date().toISOString();
-    const wasPublished = data.articles[index].status === 'published';
-    const isNowPublished = updates.status === 'published';
-    
-    data.articles[index] = {
-      ...data.articles[index],
-      ...updates,
-      updatedAt: now,
-      publishedAt: !wasPublished && isNowPublished ? now : data.articles[index].publishedAt
+    const updateData: any = {
+      updated_at: now
     };
+    
+    if (updates.title) updateData.title = updates.title;
+    if (updates.content) updateData.content = updates.content;
+    if (updates.excerpt) updateData.excerpt = updates.excerpt;
+    if (updates.category) updateData.category = updates.category;
+    if (updates.status) updateData.status = updates.status;
+    if (updates.featuredImage) updateData.image_url = updates.featuredImage;
+    if (updates.tags) updateData.tags = updates.tags;
+    
+    const { data, error } = await supabase.from('articles').update(updateData).eq('id', id).select();
     
     if (adminId) {
       await this.logAdminAction(adminId, 'UPDATE_ARTICLE', 'article', id, `Updated article: ${JSON.stringify(updates)}`);
     }
     
-    this.setStorage(data);
-    return data.articles[index];
+    if (error || !data || !data[0]) return null;
+    return this.mapArticleFromDB(data[0]);
   }
 
   async deleteArticle(id: string, adminId?: string): Promise<boolean> {
-    const data = this.getStorage();
-    const index = data.articles.findIndex((article: Article) => article.id === id);
-    if (index === -1) return false;
-    
-    data.articles.splice(index, 1);
+    const { error } = await supabase.from('articles').delete().eq('id', id);
     
     if (adminId) {
       await this.logAdminAction(adminId, 'DELETE_ARTICLE', 'article', id, 'Deleted article');
     }
     
-    this.setStorage(data);
-    return true;
+    return !error;
   }
 
   async likeArticle(articleId: string, _userId: string): Promise<boolean> {
     // _userId parameter reserved for future use (tracking who liked what)
-    const data = this.getStorage();
-    const article = data.articles.find((article: Article) => article.id === articleId);
+    const { data: article } = await supabase.from('articles').select('likes').eq('id', articleId).single();
     if (!article) return false;
     
-    article.likes += 1;
-    article.updatedAt = new Date().toISOString();
-    this.setStorage(data);
-    return true;
+    const { error } = await supabase.from('articles').update({
+      likes: article.likes + 1,
+      updated_at: new Date().toISOString()
+    }).eq('id', articleId);
+    
+    return !error;
+  }
+
+  // Helper method to map Supabase confession data to our Confession type
+  private mapConfessionFromDB(dbConfession: any): Confession {
+    return {
+      id: dbConfession.id,
+      authorId: dbConfession.author_id,
+      content: dbConfession.content,
+      category: dbConfession.category,
+      isAnonymous: dbConfession.is_anonymous,
+      likes: dbConfession.likes,
+      tags: dbConfession.tags || [],
+      isModerated: dbConfession.is_moderated,
+      createdAt: dbConfession.created_at,
+      updatedAt: dbConfession.updated_at,
+      comments: [],
+      reports: []
+    };
   }
 
   // Confessions
   async createConfession(confessionData: Omit<Confession, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'isModerated' | 'reports'>): Promise<Confession> {
-    const data = this.getStorage();
     const now = new Date().toISOString();
-    const confession: Confession = {
-      ...confessionData,
-      id: generateUUID(),
-      createdAt: now,
-      updatedAt: now,
+    const { data, error } = await supabase.from('confessions').insert({
+      author_id: confessionData.authorId,
+      content: confessionData.content,
+      category: confessionData.category || 'general',
+      is_anonymous: confessionData.isAnonymous || false,
       likes: 0,
-      isModerated: false,
-      reports: [],
-      comments: confessionData.comments || []
-    };
-    data.confessions.push(confession);
-    this.setStorage(data);
-    return confession;
+      tags: confessionData.tags || [],
+      is_moderated: false,
+      created_at: now,
+      updated_at: now
+    }).select();
+    if (error || !data || !data[0]) throw error || new Error('Failed to create confession');
+    return this.mapConfessionFromDB(data[0]);
   }
 
   async getConfessions(): Promise<Confession[]> {
-    const data = this.getStorage();
-    return data.confessions || [];
+    const { data, error } = await supabase.from('confessions').select('*').order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(confession => this.mapConfessionFromDB(confession));
   }
 
   async getConfessionsByAuthor(authorId: string): Promise<Confession[]> {
-    const data = this.getStorage();
-    return data.confessions.filter((confession: Confession) => confession.authorId === authorId);
+    const { data, error } = await supabase.from('confessions').select('*').eq('author_id', authorId).order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(confession => this.mapConfessionFromDB(confession));
   }
 
   async updateConfession(id: string, updates: Partial<Confession>, adminId?: string): Promise<Confession | null> {
-    const data = this.getStorage();
-    const index = data.confessions.findIndex((confession: Confession) => confession.id === id);
-    if (index === -1) return null;
-    
-    data.confessions[index] = {
-      ...data.confessions[index],
-      ...updates,
-      updatedAt: new Date().toISOString()
+    const now = new Date().toISOString();
+    const updateData: any = {
+      updated_at: now
     };
+    
+    if (updates.content) updateData.content = updates.content;
+    if (updates.category) updateData.category = updates.category;
+    if (updates.isAnonymous !== undefined) updateData.is_anonymous = updates.isAnonymous;
+    if (updates.tags) updateData.tags = updates.tags;
+    if (updates.isModerated !== undefined) updateData.is_moderated = updates.isModerated;
+    
+    const { data, error } = await supabase.from('confessions').update(updateData).eq('id', id).select();
     
     if (adminId) {
       await this.logAdminAction(adminId, 'UPDATE_CONFESSION', 'confession', id, `Updated confession: ${JSON.stringify(updates)}`);
     }
     
-    this.setStorage(data);
-    return data.confessions[index];
+    if (error || !data || !data[0]) return null;
+    return this.mapConfessionFromDB(data[0]);
   }
 
   async deleteConfession(id: string, authorId: string, adminId?: string): Promise<boolean> {
-    const data = this.getStorage();
-    const confessionIndex = data.confessions.findIndex((confession: Confession) => confession.id === id);
+    // First check if the confession exists and get author info
+    const { data: confession } = await supabase.from('confessions').select('author_id').eq('id', id).single();
     
-    if (confessionIndex === -1) {
+    if (!confession) {
       return false;
     }
     
-    const confession = data.confessions[confessionIndex];
-    
     // Check permissions: either author deleting own confession, or admin/moderator deleting any
-    const canDelete = confession.authorId === authorId || adminId;
+    const canDelete = confession.author_id === authorId || adminId;
     
     if (!canDelete) {
       return false;
     }
     
-    data.confessions.splice(confessionIndex, 1);
+    const { error } = await supabase.from('confessions').delete().eq('id', id);
     
     if (adminId) {
       await this.logAdminAction(adminId, 'DELETE_CONFESSION', 'confession', id, 'Deleted confession');
     }
     
-    this.setStorage(data);
-    return true;
+    return !error;
   }
 
   async likeConfession(confessionId: string, _userId: string): Promise<boolean> {
     // _userId parameter reserved for future use (tracking who liked what)
-    const data = this.getStorage();
-    const confession = data.confessions.find((confession: Confession) => confession.id === confessionId);
+    const { data: confession } = await supabase.from('confessions').select('likes').eq('id', confessionId).single();
     if (!confession) return false;
     
-    confession.likes += 1;
-    confession.updatedAt = new Date().toISOString();
-    this.setStorage(data);
-    return true;
+    const { error } = await supabase.from('confessions').update({
+      likes: confession.likes + 1,
+      updated_at: new Date().toISOString()
+    }).eq('id', confessionId);
+    
+    return !error;
   }
 
-  // Initialize demo data
+  // Initialize data - no longer needed for Supabase
   async initializeDemoData(): Promise<void> {
-    const data = this.getStorage();
-    // Demo data initialization removed for production
-    // But ensure all arrays are properly initialized
-    if (!data.reactions) {
-      data.reactions = [];
-      this.setStorage(data);
-    }
+    // Database initialization is handled by Supabase migrations
     return;
   }
 
   // Reports and Moderation
   async createReport(reportData: Omit<Report, 'id' | 'createdAt' | 'status'>): Promise<Report> {
-    const data = this.getStorage();
-    const report: Report = {
-      ...reportData,
-      id: generateUUID(),
-      createdAt: new Date().toISOString(),
-      status: 'pending'
+    const { data, error } = await supabase.from('reports').insert({
+      reporter_id: reportData.reporterId,
+      reported_content_type: reportData.reportedItemType,
+      reported_content_id: reportData.reportedItemId,
+      reason: reportData.reason,
+      description: reportData.description,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    }).select();
+    if (error || !data || !data[0]) throw error || new Error('Failed to create report');
+    return this.mapReportFromDB(data[0]);
+  }
+
+  // Helper method to map Supabase report data to our Report type
+  private mapReportFromDB(dbReport: any): Report {
+    return {
+      id: dbReport.id,
+      reporterId: dbReport.reporter_id,
+      reportedItemType: dbReport.reported_content_type,
+      reportedItemId: dbReport.reported_content_id,
+      reason: dbReport.reason,
+      description: dbReport.description,
+      status: dbReport.status,
+      resolvedBy: dbReport.reviewed_by,
+      resolvedAt: dbReport.reviewed_at,
+      createdAt: dbReport.created_at
     };
-    data.reports.push(report);
-    this.setStorage(data);
-    return report;
   }
 
   async getReports(status?: Report['status']): Promise<Report[]> {
-    const data = this.getStorage();
-    return status ? data.reports.filter(r => r.status === status) : data.reports;
+    const query = supabase.from('reports').select('*');
+    if (status) query.eq('status', status);
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error || !data) return [];
+    return data.map(report => this.mapReportFromDB(report));
   }
 
   async resolveReport(id: string, adminId: string, action: 'resolved' | 'dismissed'): Promise<boolean> {
-    const data = this.getStorage();
-    const report = data.reports.find(r => r.id === id);
-    if (!report) return false;
+    const { error } = await supabase.from('reports').update({
+      status: action,
+      reviewed_by: adminId,
+      reviewed_at: new Date().toISOString()
+    }).eq('id', id);
     
-    report.status = action;
-    report.resolvedBy = adminId;
-    report.resolvedAt = new Date().toISOString();
+    const { data: report } = await supabase.from('reports').select('reported_content_id, reason').eq('id', id).single();
+    if (report) {
+      await this.logAdminAction(adminId, 'RESOLVE_REPORT', 'user', report.reported_content_id, `Report ${action}: ${report.reason}`);
+    }
     
-    await this.logAdminAction(adminId, 'RESOLVE_REPORT', 'user', report.reportedItemId, `Report ${action}: ${report.reason}`);
-    this.setStorage(data);
-    return true;
+    return !error;
   }
 
   // Admin Logs
   async getAdminLogs(limit = 50): Promise<AdminLog[]> {
-    const data = this.getStorage();
-    return data.adminLogs
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, limit);
+    const { data, error } = await supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (error || !data) return [];
+    return data.map(log => this.mapAdminLogFromDB(log));
+  }
+
+  // Helper method to map Supabase admin log data to our AdminLog type
+  private mapAdminLogFromDB(dbLog: any): AdminLog {
+    return {
+      id: dbLog.id,
+      adminId: dbLog.admin_id,
+      action: dbLog.action,
+      targetType: dbLog.target_type,
+      targetId: dbLog.target_id,
+      details: dbLog.details,
+      createdAt: dbLog.created_at
+    };
   }
 
   // Statistics
   async getDashboardStats(): Promise<any> {
-    const data = this.getStorage();
     const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const recentArticles = data.articles.filter(a => new Date(a.createdAt) > weekAgo);
-    const recentConfessions = data.confessions.filter(c => new Date(c.createdAt) > weekAgo);
-    const recentUsers = data.users.filter(u => new Date(u.createdAt) > weekAgo);
+    // Get total counts
+    const { data: articles } = await supabase.from('articles').select('likes, views, created_at');
+    const { data: confessions } = await supabase.from('confessions').select('likes, created_at');
+    const { data: users } = await supabase.from('users').select('created_at, is_active');
+    const { data: comments } = await supabase.from('comments').select('id');
 
-    const monthlyArticles = data.articles.filter(a => new Date(a.createdAt) > monthAgo);
-    const monthlyConfessions = data.confessions.filter(c => new Date(c.createdAt) > monthAgo);
-    const monthlyUsers = data.users.filter(u => new Date(u.createdAt) > monthAgo);
+    const totalArticles = articles?.length || 0;
+    const totalConfessions = confessions?.length || 0;
+    const totalUsers = users?.filter(u => u.is_active).length || 0;
+    const totalLikes = (articles?.reduce((sum, a) => sum + a.likes, 0) || 0) + (confessions?.reduce((sum, c) => sum + c.likes, 0) || 0);
+    const totalComments = comments?.length || 0;
+    const totalViews = articles?.reduce((sum, a) => sum + a.views, 0) || 0;
+
+    // Recent data (last week)
+    const recentArticles = articles?.filter(a => new Date(a.created_at) > new Date(weekAgo)) || [];
+    const recentConfessions = confessions?.filter(c => new Date(c.created_at) > new Date(weekAgo)) || [];
+    const recentUsers = users?.filter(u => new Date(u.created_at) > new Date(weekAgo)) || [];
+
+    // Monthly data
+    const monthlyArticles = articles?.filter(a => new Date(a.created_at) > new Date(monthAgo)) || [];
+    const monthlyConfessions = confessions?.filter(c => new Date(c.created_at) > new Date(monthAgo)) || [];
+    const monthlyUsers = users?.filter(u => new Date(u.created_at) > new Date(monthAgo)) || [];
 
     return {
-      totalArticles: data.articles.length,
-      totalConfessions: data.confessions.length,
-      totalUsers: data.users.filter(u => u.isActive).length,
-      totalLikes: data.articles.reduce((sum, a) => sum + a.likes, 0) + data.confessions.reduce((sum, c) => sum + c.likes, 0),
-      totalComments: data.articles.reduce((sum, a) => sum + a.comments.length, 0),
-      totalViews: data.articles.reduce((sum, a) => sum + a.views, 0),
+      totalArticles,
+      totalConfessions,
+      totalUsers,
+      totalLikes,
+      totalComments,
+      totalViews,
       weeklyGrowth: {
         articles: recentArticles.length,
         confessions: recentConfessions.length,
         users: recentUsers.length,
-        engagement: recentArticles.reduce((sum, a) => sum + a.likes + a.comments.length, 0) + recentConfessions.reduce((sum, c) => sum + c.likes, 0)
+        engagement: recentArticles.reduce((sum, a) => sum + a.likes, 0) + recentConfessions.reduce((sum, c) => sum + c.likes, 0)
       },
       monthlyStats: {
-        articlesPublished: monthlyArticles.filter(a => a.status === 'published').length,
+        articlesPublished: monthlyArticles.length,
         confessionsPosted: monthlyConfessions.length,
         newUsers: monthlyUsers.length,
-        totalEngagement: monthlyArticles.reduce((sum, a) => sum + a.likes + a.comments.length, 0) + monthlyConfessions.reduce((sum, c) => sum + c.likes, 0)
+        totalEngagement: monthlyArticles.reduce((sum, a) => sum + a.likes, 0) + monthlyConfessions.reduce((sum, c) => sum + c.likes, 0)
       }
     };
   }
@@ -675,33 +763,43 @@ export class DatabaseService {
     return false;
   }
 
-  // Enhanced Reaction System
+  // Enhanced Reaction System - Note: Requires reactions table in Supabase
   async getReactions(targetType: 'article' | 'confession' | 'comment', targetId: string, userId?: string): Promise<ReactionSummary> {
-    const data = this.getStorage();
-    
-    // Ensure reactions array exists
-    if (!data.reactions) {
-      data.reactions = [];
-      this.setStorage(data);
-    }
-    
-    const reactions = data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
-    
-    const summary: ReactionSummary = {
-      thumbs_up: reactions.filter(r => r.type === 'thumbs_up').length,
-      heart: reactions.filter(r => r.type === 'heart').length,
-      insightful: reactions.filter(r => r.type === 'insightful').length,
-      boring: reactions.filter(r => r.type === 'boring').length,
-      total: reactions.length,
-      userReaction: null
-    };
+    try {
+      const { data: reactions } = await supabase
+        .from('reactions')
+        .select('*')
+        .eq('target_type', targetType)
+        .eq('target_id', targetId);
 
-    if (userId) {
-      const userReaction = reactions.find(r => r.userId === userId);
-      summary.userReaction = userReaction?.type || null;
-    }
+      const reactionArray = reactions || [];
+      
+      const summary: ReactionSummary = {
+        thumbs_up: reactionArray.filter(r => r.type === 'thumbs_up').length,
+        heart: reactionArray.filter(r => r.type === 'heart').length,
+        insightful: reactionArray.filter(r => r.type === 'insightful').length,
+        boring: reactionArray.filter(r => r.type === 'boring').length,
+        total: reactionArray.length,
+        userReaction: null
+      };
 
-    return summary;
+      if (userId) {
+        const userReaction = reactionArray.find(r => r.user_id === userId);
+        summary.userReaction = userReaction?.type || null;
+      }
+
+      return summary;
+    } catch (error) {
+      // Fallback if reactions table doesn't exist yet
+      return {
+        thumbs_up: 0,
+        heart: 0,
+        insightful: 0,
+        boring: 0,
+        total: 0,
+        userReaction: null
+      };
+    }
   }
 
   async toggleReaction(
@@ -710,63 +808,76 @@ export class DatabaseService {
     userId: string,
     reactionType: keyof typeof REACTION_TYPES
   ): Promise<ReactionSummary> {
-    const data = this.getStorage();
-    
-    // Ensure reactions array exists
-    if (!data.reactions) {
-      data.reactions = [];
-    }
-    
-    // Find existing reaction by this user for this target
-    const existingReactionIndex = data.reactions.findIndex(
-      r => r.targetType === targetType && r.targetId === targetId && r.userId === userId
-    );
+    try {
+      // Find existing reaction by this user for this target
+      const { data: existingReactions } = await supabase
+        .from('reactions')
+        .select('*')
+        .eq('target_type', targetType)
+        .eq('target_id', targetId)
+        .eq('user_id', userId);
 
-    if (existingReactionIndex !== -1) {
-      const existingReaction = data.reactions[existingReactionIndex];
-      
-      if (existingReaction.type === reactionType) {
-        // Remove reaction if same type
-        data.reactions.splice(existingReactionIndex, 1);
+      const existingReaction = existingReactions?.[0];
+
+      if (existingReaction) {
+        if (existingReaction.type === reactionType) {
+          // Remove reaction if same type
+          await supabase.from('reactions').delete().eq('id', existingReaction.id);
+        } else {
+          // Update reaction type
+          await supabase.from('reactions').update({
+            type: reactionType,
+            created_at: new Date().toISOString()
+          }).eq('id', existingReaction.id);
+        }
       } else {
-        // Update reaction type
-        data.reactions[existingReactionIndex] = {
-          ...existingReaction,
+        // Add new reaction
+        await supabase.from('reactions').insert({
+          user_id: userId,
+          target_type: targetType,
+          target_id: targetId,
           type: reactionType,
-          createdAt: new Date().toISOString()
-        };
+          created_at: new Date().toISOString()
+        });
       }
-    } else {
-      // Add new reaction
-      const newReaction: Reaction = {
-        id: generateUUID(),
-        userId,
-        targetType,
-        targetId,
-        type: reactionType,
-        createdAt: new Date().toISOString()
-      };
-      data.reactions.push(newReaction);
-    }
 
-    this.setStorage(data);
-    return this.getReactions(targetType, targetId, userId);
+      return this.getReactions(targetType, targetId, userId);
+    } catch (error) {
+      // Fallback if reactions table doesn't exist yet
+      return this.getReactions(targetType, targetId, userId);
+    }
   }
 
   async getUserReactions(userId: string): Promise<Reaction[]> {
-    const data = this.getStorage();
-    if (!data.reactions) {
+    try {
+      const { data, error } = await supabase.from('reactions').select('*').eq('user_id', userId);
+      if (error || !data) return [];
+      return data.map(reaction => this.mapReactionFromDB(reaction));
+    } catch (error) {
       return [];
     }
-    return data.reactions.filter(r => r.userId === userId);
   }
 
   async getReactionsByTarget(targetType: 'article' | 'confession' | 'comment', targetId: string): Promise<Reaction[]> {
-    const data = this.getStorage();
-    if (!data.reactions) {
+    try {
+      const { data, error } = await supabase.from('reactions').select('*').eq('target_type', targetType).eq('target_id', targetId);
+      if (error || !data) return [];
+      return data.map(reaction => this.mapReactionFromDB(reaction));
+    } catch (error) {
       return [];
     }
-    return data.reactions.filter(r => r.targetType === targetType && r.targetId === targetId);
+  }
+
+  // Helper method to map Supabase reaction data to our Reaction type
+  private mapReactionFromDB(dbReaction: any): Reaction {
+    return {
+      id: dbReaction.id,
+      userId: dbReaction.user_id,
+      targetType: dbReaction.target_type,
+      targetId: dbReaction.target_id,
+      type: dbReaction.type,
+      createdAt: dbReaction.created_at
+    };
   }
 }
 
