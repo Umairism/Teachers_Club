@@ -1,14 +1,5 @@
 import { User, Article, Confession, Comment, Report, AdminLog, UserPermissions, ConfessionComment, Reaction, ReactionSummary, REACTION_TYPES } from '../types';
-import { supabase, Tables, TablesInsert, TablesUpdate } from './supabase';
-
-// UUID generator function for browser compatibility
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+import { supabase } from './supabase';
 
 // Helper function to get user permissions based on role
 function getUserPermissions(role: User['role']): UserPermissions {
@@ -50,18 +41,6 @@ function getUserPermissions(role: User['role']): UserPermissions {
 }
 
 export class DatabaseService {
-  // Log admin actions to Supabase
-  private async logAdminAction(adminId: string, action: string, targetType: 'user' | 'article' | 'confession' | 'comment', targetId: string, details: string): Promise<void> {
-    await supabase.from('admin_logs').insert({
-      admin_id: adminId,
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      details,
-      created_at: new Date().toISOString()
-    });
-  }
-
   // Helper method to map Supabase user data to our User type
   private mapUserFromDB(dbUser: any): User {
     return {
@@ -71,88 +50,121 @@ export class DatabaseService {
       role: dbUser.role,
       createdAt: dbUser.created_at,
       updatedAt: dbUser.updated_at,
-      avatar: dbUser.profile_picture_url,
-      bio: dbUser.bio,
-      school: dbUser.school,
-      subject: dbUser.subject,
-      designation: dbUser.designation,
-      profilePicture: dbUser.profile_picture_url,
-      isActive: dbUser.is_active,
+      isActive: true, // Default to true since this column doesn't exist in schema
       lastLogin: dbUser.last_login,
+      profilePicture: dbUser.profile_picture_url,
+      bio: dbUser.bio || '',
+      school: '', // Not in schema
+      subject: '', // Not in schema  
+      designation: '', // Not in schema
       permissions: getUserPermissions(dbUser.role)
     };
+  }
+
+  // Log admin actions to Supabase
+  private async logAdminAction(adminId: string, action: string, targetType: 'user' | 'article' | 'confession' | 'comment', targetId: string, details: string): Promise<void> {
+    try {
+      await supabase.from('admin_logs').insert({
+        admin_id: adminId,
+        action,
+        target_type: targetType,
+        target_id: targetId,
+        details,
+        created_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Failed to log admin action:', error);
+    }
   }
 
   // Users
   async createUser(userData: Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'permissions' | 'isActive'>): Promise<User> {
     const now = new Date().toISOString();
-    const { data, error } = await supabase.from('users').insert({
+    const insertData = {
       email: userData.email,
       name: userData.name,
       role: userData.role,
+      profile_picture_url: userData.profilePicture,
       bio: userData.bio || '',
-      school: userData.school || '',
-      subject: userData.subject || '',
-      designation: userData.designation || '',
-      profile_picture_url: userData.profilePicture || userData.avatar,
-      is_active: true,
       created_at: now,
       updated_at: now
-    }).select();
-    if (error || !data || !data[0]) throw error || new Error('Failed to create user');
-    return this.mapUserFromDB(data[0]);
+    };
+    
+    const { data, error } = await supabase.from('users').insert(insertData).select().single();
+    
+    if (error) {
+      console.error('Database error during user creation:', error);
+      throw error;
+    }
+    
+    return this.mapUserFromDB(data);
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
-    const { data, error } = await supabase.from('users').select('*').eq('email', email).eq('is_active', true).single();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    
     if (error || !data) return null;
     return this.mapUserFromDB(data);
   }
 
   async getUserById(id: string): Promise<User | null> {
-    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
     if (error || !data) return null;
     return this.mapUserFromDB(data);
   }
 
   async getUsers(includeInactive = false): Promise<User[]> {
-    const data = this.getStorage();
-    return includeInactive ? data.users : data.users.filter(user => user.isActive);
+    const { data, error } = await supabase.from('users').select('*');
+    if (error || !data) return [];
+    return data.map(user => this.mapUserFromDB(user));
   }
 
   async updateUser(id: string, updates: Partial<User>, adminId?: string): Promise<User | null> {
-    const data = this.getStorage();
-    const index = data.users.findIndex((user: User) => user.id === id);
-    if (index === -1) return null;
-    
-    const oldUser = data.users[index];
-    data.users[index] = {
-      ...oldUser,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-      permissions: updates.role ? getUserPermissions(updates.role) : oldUser.permissions
+    const now = new Date().toISOString();
+    const updateData: any = {
+      updated_at: now
     };
+    
+    if (updates.email) updateData.email = updates.email;
+    if (updates.name) updateData.name = updates.name;
+    if (updates.role) updateData.role = updates.role;
+    if (updates.profilePicture) updateData.profile_picture_url = updates.profilePicture;
+    if (updates.bio !== undefined) updateData.bio = updates.bio;
+    if (updates.lastLogin) updateData.last_login = updates.lastLogin;
+    
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
     
     if (adminId) {
       await this.logAdminAction(adminId, 'UPDATE_USER', 'user', id, `Updated user: ${JSON.stringify(updates)}`);
     }
     
-    this.setStorage(data);
-    return data.users[index];
+    if (error || !data) return null;
+    return this.mapUserFromDB(data);
   }
 
   async deleteUser(id: string, adminId: string): Promise<boolean> {
-    const data = this.getStorage();
-    const index = data.users.findIndex((user: User) => user.id === id);
-    if (index === -1) return false;
+    // Since is_active column doesn't exist, we'll actually delete the user
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
     
-    // Soft delete by marking as inactive
-    data.users[index].isActive = false;
-    data.users[index].updatedAt = new Date().toISOString();
-    
-    await this.logAdminAction(adminId, 'DELETE_USER', 'user', id, `Deactivated user`);
-    this.setStorage(data);
-    return true;
+    await this.logAdminAction(adminId, 'DELETE_USER', 'user', id, 'Deleted user');
+    return !error;
   }
 
   // Articles
@@ -382,147 +394,23 @@ export class DatabaseService {
     return !error;
   }
 
-  // Initialize data - no longer needed for Supabase
+  // Initialize data - Supabase handles initialization
   async initializeDemoData(): Promise<void> {
     // Database initialization is handled by Supabase migrations
     return;
   }
 
-  // Reports and Moderation
-  async createReport(reportData: Omit<Report, 'id' | 'createdAt' | 'status'>): Promise<Report> {
-    const { data, error } = await supabase.from('reports').insert({
-      reporter_id: reportData.reporterId,
-      reported_content_type: reportData.reportedItemType,
-      reported_content_id: reportData.reportedItemId,
-      reason: reportData.reason,
-      description: reportData.description,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    }).select();
-    if (error || !data || !data[0]) throw error || new Error('Failed to create report');
-    return this.mapReportFromDB(data[0]);
-  }
-
-  // Helper method to map Supabase report data to our Report type
-  private mapReportFromDB(dbReport: any): Report {
-    return {
-      id: dbReport.id,
-      reporterId: dbReport.reporter_id,
-      reportedItemType: dbReport.reported_content_type,
-      reportedItemId: dbReport.reported_content_id,
-      reason: dbReport.reason,
-      description: dbReport.description,
-      status: dbReport.status,
-      resolvedBy: dbReport.reviewed_by,
-      resolvedAt: dbReport.reviewed_at,
-      createdAt: dbReport.created_at
-    };
-  }
-
-  async getReports(status?: Report['status']): Promise<Report[]> {
-    const query = supabase.from('reports').select('*');
-    if (status) query.eq('status', status);
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error || !data) return [];
-    return data.map(report => this.mapReportFromDB(report));
-  }
-
-  async resolveReport(id: string, adminId: string, action: 'resolved' | 'dismissed'): Promise<boolean> {
-    const { error } = await supabase.from('reports').update({
-      status: action,
-      reviewed_by: adminId,
-      reviewed_at: new Date().toISOString()
-    }).eq('id', id);
-    
-    const { data: report } = await supabase.from('reports').select('reported_content_id, reason').eq('id', id).single();
-    if (report) {
-      await this.logAdminAction(adminId, 'RESOLVE_REPORT', 'user', report.reported_content_id, `Report ${action}: ${report.reason}`);
-    }
-    
-    return !error;
-  }
-
-  // Admin Logs
-  async getAdminLogs(limit = 50): Promise<AdminLog[]> {
-    const { data, error } = await supabase.from('admin_logs').select('*').order('created_at', { ascending: false }).limit(limit);
-    if (error || !data) return [];
-    return data.map(log => this.mapAdminLogFromDB(log));
-  }
-
-  // Helper method to map Supabase admin log data to our AdminLog type
-  private mapAdminLogFromDB(dbLog: any): AdminLog {
-    return {
-      id: dbLog.id,
-      adminId: dbLog.admin_id,
-      action: dbLog.action,
-      targetType: dbLog.target_type,
-      targetId: dbLog.target_id,
-      details: dbLog.details,
-      createdAt: dbLog.created_at
-    };
-  }
-
-  // Statistics
-  async getDashboardStats(): Promise<any> {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    // Get total counts
-    const { data: articles } = await supabase.from('articles').select('likes, views, created_at');
-    const { data: confessions } = await supabase.from('confessions').select('likes, created_at');
-    const { data: users } = await supabase.from('users').select('created_at, is_active');
-    const { data: comments } = await supabase.from('comments').select('id');
-
-    const totalArticles = articles?.length || 0;
-    const totalConfessions = confessions?.length || 0;
-    const totalUsers = users?.filter(u => u.is_active).length || 0;
-    const totalLikes = (articles?.reduce((sum, a) => sum + a.likes, 0) || 0) + (confessions?.reduce((sum, c) => sum + c.likes, 0) || 0);
-    const totalComments = comments?.length || 0;
-    const totalViews = articles?.reduce((sum, a) => sum + a.views, 0) || 0;
-
-    // Recent data (last week)
-    const recentArticles = articles?.filter(a => new Date(a.created_at) > new Date(weekAgo)) || [];
-    const recentConfessions = confessions?.filter(c => new Date(c.created_at) > new Date(weekAgo)) || [];
-    const recentUsers = users?.filter(u => new Date(u.created_at) > new Date(weekAgo)) || [];
-
-    // Monthly data
-    const monthlyArticles = articles?.filter(a => new Date(a.created_at) > new Date(monthAgo)) || [];
-    const monthlyConfessions = confessions?.filter(c => new Date(c.created_at) > new Date(monthAgo)) || [];
-    const monthlyUsers = users?.filter(u => new Date(u.created_at) > new Date(monthAgo)) || [];
-
-    return {
-      totalArticles,
-      totalConfessions,
-      totalUsers,
-      totalLikes,
-      totalComments,
-      totalViews,
-      weeklyGrowth: {
-        articles: recentArticles.length,
-        confessions: recentConfessions.length,
-        users: recentUsers.length,
-        engagement: recentArticles.reduce((sum, a) => sum + a.likes, 0) + recentConfessions.reduce((sum, c) => sum + c.likes, 0)
-      },
-      monthlyStats: {
-        articlesPublished: monthlyArticles.length,
-        confessionsPosted: monthlyConfessions.length,
-        newUsers: monthlyUsers.length,
-        totalEngagement: monthlyArticles.reduce((sum, a) => sum + a.likes, 0) + monthlyConfessions.reduce((sum, c) => sum + c.likes, 0)
-      }
-    };
-  }
-
-  // Comments for Articles
+  // Fallback methods for localStorage-dependent features (will be converted gradually)
+  // Comments for Articles - Using temporary localStorage until Supabase comment system is implemented
   async addComment(articleId: string, commentData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'isModerated' | 'replies'>): Promise<Comment> {
-    const data = this.getStorage();
-    const article = data.articles.find(a => a.id === articleId);
-    if (!article) throw new Error('Article not found');
-
+    // For now, store comments in localStorage until full migration
+    const commentsKey = `article_comments_${articleId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
+    
     const now = new Date().toISOString();
     const comment: Comment = {
       ...commentData,
-      id: generateUUID(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       likes: 0,
@@ -530,24 +418,22 @@ export class DatabaseService {
       replies: []
     };
 
-    article.comments.push(comment);
-    article.updatedAt = now;
-    this.setStorage(data);
+    existingComments.push(comment);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return comment;
   }
 
   async replyToComment(articleId: string, parentCommentId: string, replyData: Omit<Comment, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'isModerated' | 'replies' | 'parentCommentId'>): Promise<Comment> {
-    const data = this.getStorage();
-    const article = data.articles.find(a => a.id === articleId);
-    if (!article) throw new Error('Article not found');
-
-    const parentComment = article.comments.find(c => c.id === parentCommentId);
+    const commentsKey = `article_comments_${articleId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
+    
+    const parentComment = existingComments.find((c: Comment) => c.id === parentCommentId);
     if (!parentComment) throw new Error('Parent comment not found');
 
     const now = new Date().toISOString();
     const reply: Comment = {
       ...replyData,
-      id: generateUUID(),
+      id: crypto.randomUUID(),
       parentCommentId,
       createdAt: now,
       updatedAt: now,
@@ -557,23 +443,20 @@ export class DatabaseService {
     };
 
     parentComment.replies.push(reply);
-    article.updatedAt = now;
-    this.setStorage(data);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return reply;
   }
 
   async likeComment(articleId: string, commentId: string, _userId: string): Promise<boolean> {
-    // _userId parameter reserved for future use (tracking who liked what)
-    const data = this.getStorage();
-    const article = data.articles.find(a => a.id === articleId);
-    if (!article) return false;
-
+    const commentsKey = `article_comments_${articleId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
+    
     // Find comment in main comments or replies
-    let comment = article.comments.find(c => c.id === commentId);
+    let comment = existingComments.find((c: Comment) => c.id === commentId);
     if (!comment) {
       // Search in replies
-      for (const mainComment of article.comments) {
-        comment = mainComment.replies.find(r => r.id === commentId);
+      for (const mainComment of existingComments) {
+        comment = mainComment.replies.find((r: Comment) => r.id === commentId);
         if (comment) break;
       }
     }
@@ -582,36 +465,31 @@ export class DatabaseService {
 
     comment.likes += 1;
     comment.updatedAt = new Date().toISOString();
-    article.updatedAt = new Date().toISOString();
-    this.setStorage(data);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return true;
   }
 
   async deleteComment(articleId: string, commentId: string, userId: string, isAdmin = false): Promise<boolean> {
-    const data = this.getStorage();
-    const article = data.articles.find(a => a.id === articleId);
-    if (!article) {
-      return false;
-    }
-
+    const commentsKey = `article_comments_${articleId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
+    
     // Find and remove comment from main comments
-    const commentIndex = article.comments.findIndex(c => c.id === commentId);
+    const commentIndex = existingComments.findIndex((c: Comment) => c.id === commentId);
     if (commentIndex !== -1) {
-      const comment = article.comments[commentIndex];
+      const comment = existingComments[commentIndex];
       
       if (comment.authorId !== userId && !isAdmin) {
         return false;
       }
       
-      article.comments.splice(commentIndex, 1);
-      article.updatedAt = new Date().toISOString();
-      this.setStorage(data);
+      existingComments.splice(commentIndex, 1);
+      localStorage.setItem(commentsKey, JSON.stringify(existingComments));
       return true;
     }
 
     // Find and remove comment from replies
-    for (const mainComment of article.comments) {
-      const replyIndex = mainComment.replies.findIndex(r => r.id === commentId);
+    for (const mainComment of existingComments) {
+      const replyIndex = mainComment.replies.findIndex((r: Comment) => r.id === commentId);
       if (replyIndex !== -1) {
         const reply = mainComment.replies[replyIndex];
         
@@ -620,8 +498,7 @@ export class DatabaseService {
         }
         
         mainComment.replies.splice(replyIndex, 1);
-        article.updatedAt = new Date().toISOString();
-        this.setStorage(data);
+        localStorage.setItem(commentsKey, JSON.stringify(existingComments));
         return true;
       }
     }
@@ -629,16 +506,15 @@ export class DatabaseService {
     return false;
   }
 
-  // Comments for Confessions
+  // Comments for Confessions - Using temporary localStorage
   async addConfessionComment(confessionId: string, commentData: Omit<ConfessionComment, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'isModerated' | 'replies'>): Promise<ConfessionComment> {
-    const data = this.getStorage();
-    const confession = data.confessions.find(c => c.id === confessionId);
-    if (!confession) throw new Error('Confession not found');
+    const commentsKey = `confession_comments_${confessionId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
 
     const now = new Date().toISOString();
     const comment: ConfessionComment = {
       ...commentData,
-      id: generateUUID(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       likes: 0,
@@ -646,27 +522,22 @@ export class DatabaseService {
       replies: []
     };
 
-    if (!confession.comments) {
-      confession.comments = [];
-    }
-    confession.comments.push(comment);
-    confession.updatedAt = now;
-    this.setStorage(data);
+    existingComments.push(comment);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return comment;
   }
 
   async replyToConfessionComment(confessionId: string, parentCommentId: string, replyData: Omit<ConfessionComment, 'id' | 'createdAt' | 'updatedAt' | 'likes' | 'isModerated' | 'replies' | 'parentCommentId'>): Promise<ConfessionComment> {
-    const data = this.getStorage();
-    const confession = data.confessions.find(c => c.id === confessionId);
-    if (!confession) throw new Error('Confession not found');
+    const commentsKey = `confession_comments_${confessionId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
 
-    const parentComment = confession.comments?.find(c => c.id === parentCommentId);
+    const parentComment = existingComments.find((c: ConfessionComment) => c.id === parentCommentId);
     if (!parentComment) throw new Error('Parent comment not found');
 
     const now = new Date().toISOString();
     const reply: ConfessionComment = {
       ...replyData,
-      id: generateUUID(),
+      id: crypto.randomUUID(),
       parentCommentId,
       createdAt: now,
       updatedAt: now,
@@ -676,23 +547,20 @@ export class DatabaseService {
     };
 
     parentComment.replies.push(reply);
-    confession.updatedAt = now;
-    this.setStorage(data);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return reply;
   }
 
   async likeConfessionComment(confessionId: string, commentId: string, _userId: string): Promise<boolean> {
-    // _userId parameter reserved for future use (tracking who liked what)
-    const data = this.getStorage();
-    const confession = data.confessions.find(c => c.id === confessionId);
-    if (!confession || !confession.comments) return false;
+    const commentsKey = `confession_comments_${confessionId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
 
     // Find comment in main comments or replies
-    let comment = confession.comments.find(c => c.id === commentId);
+    let comment = existingComments.find((c: ConfessionComment) => c.id === commentId);
     if (!comment) {
       // Search in replies
-      for (const mainComment of confession.comments) {
-        comment = mainComment.replies.find(r => r.id === commentId);
+      for (const mainComment of existingComments) {
+        comment = mainComment.replies.find((r: ConfessionComment) => r.id === commentId);
         if (comment) break;
       }
     }
@@ -701,36 +569,31 @@ export class DatabaseService {
 
     comment.likes += 1;
     comment.updatedAt = new Date().toISOString();
-    confession.updatedAt = new Date().toISOString();
-    this.setStorage(data);
+    localStorage.setItem(commentsKey, JSON.stringify(existingComments));
     return true;
   }
 
   async deleteConfessionComment(confessionId: string, commentId: string, userId: string, isAdmin = false): Promise<boolean> {
-    const data = this.getStorage();
-    const confession = data.confessions.find(c => c.id === confessionId);
-    if (!confession || !confession.comments) {
-      return false;
-    }
+    const commentsKey = `confession_comments_${confessionId}`;
+    const existingComments = JSON.parse(localStorage.getItem(commentsKey) || '[]');
 
     // Find and remove comment from main comments
-    const commentIndex = confession.comments.findIndex(c => c.id === commentId);
+    const commentIndex = existingComments.findIndex((c: ConfessionComment) => c.id === commentId);
     if (commentIndex !== -1) {
-      const comment = confession.comments[commentIndex];
+      const comment = existingComments[commentIndex];
       
       if (comment.authorId !== userId && !isAdmin) {
         return false;
       }
       
-      confession.comments.splice(commentIndex, 1);
-      confession.updatedAt = new Date().toISOString();
-      this.setStorage(data);
+      existingComments.splice(commentIndex, 1);
+      localStorage.setItem(commentsKey, JSON.stringify(existingComments));
       return true;
     }
 
     // Find and remove comment from replies
-    for (const mainComment of confession.comments) {
-      const replyIndex = mainComment.replies.findIndex(r => r.id === commentId);
+    for (const mainComment of existingComments) {
+      const replyIndex = mainComment.replies.findIndex((r: ConfessionComment) => r.id === commentId);
       if (replyIndex !== -1) {
         const reply = mainComment.replies[replyIndex];
         
@@ -739,8 +602,7 @@ export class DatabaseService {
         }
         
         mainComment.replies.splice(replyIndex, 1);
-        confession.updatedAt = new Date().toISOString();
-        this.setStorage(data);
+        localStorage.setItem(commentsKey, JSON.stringify(existingComments));
         return true;
       }
     }
@@ -873,3 +735,7 @@ export const getAllUsers = () => db.getUsers();
 export const getAllArticles = () => db.getArticles();
 export const getAllConfessions = () => db.getConfessions();
 export const deleteUser = (userId: string, adminId: string) => db.deleteUser(userId, adminId);
+function generateUUID(): string {
+  throw new Error('Function not implemented.');
+}
+

@@ -50,40 +50,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (userData: RegisterData): Promise<boolean> => {
     try {
-      // Invite codes for different user roles
-      // These codes grant access to the Teachers Club platform
+      // Production invite codes - these should be managed by administrators
+      // In production, these codes should be provided by your institution's admin
       const inviteCodes = {
-        'TEACHER2025': 'teacher' as const,
-        'STUDENT2025': 'student' as const,
-        'ADMIN2025': 'admin' as const,
-        'MODERATOR2025': 'moderator' as const,
-        'TEACHERS_CLUB': 'teacher' as const,
-        'EDUCATORS_HUB': 'teacher' as const,
-        'LEARNERS_SPACE': 'student' as const,
-        'ACADEMY_ACCESS': 'student' as const
+        'TEACHER2024': 'teacher',
+        'ADMIN2024': 'admin',
+        'MODERATOR2024': 'moderator',
+        'STUDENT2024': 'student',
+        'TC-TEACHER': 'teacher',
+        'TC-ADMIN': 'admin',
+        'TC-MOD': 'moderator',
+        'TC-STUDENT': 'student'
       };
 
       // Validate invite code
       if (!(userData.inviteCode in inviteCodes)) {
+        console.log('Invalid invite code:', userData.inviteCode);
         return false;
       }
 
       // Check if user already exists
       const existingUser = await db.getUserByEmail(userData.email);
       if (existingUser) {
+        console.log('User already exists');
         return false;
       }
 
       // Determine role based on invite code
-      const role = inviteCodes[userData.inviteCode as keyof typeof inviteCodes];
+      const role = inviteCodes[userData.inviteCode as keyof typeof inviteCodes] as 'teacher' | 'admin' | 'moderator' | 'student';
 
       // Create new user
       const newUser = await db.createUser({
         email: userData.email,
         name: userData.name,
         role: role,
-        bio: '',
-        school: 'Teachers Club Academy'
+        bio: ''
       });
 
       setUser(newUser);
