@@ -107,8 +107,16 @@ export class DatabaseService {
       .eq('email', email)
       .single();
     
-    if (error || !data) return null;
-    return this.mapUserFromDB(data);
+    if (error) {
+      // This is expected for new users (404 error)
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      console.error('Error checking user existence:', error);
+      return null;
+    }
+    
+    return data ? this.mapUserFromDB(data) : null;
   }
 
   async getUserById(id: string): Promise<User | null> {

@@ -65,14 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Validate invite code
       if (!(userData.inviteCode in inviteCodes)) {
-        console.log('Invalid invite code:', userData.inviteCode);
         return false;
       }
 
       // Check if user already exists
       const existingUser = await db.getUserByEmail(userData.email);
       if (existingUser) {
-        console.log('User already exists');
         return false;
       }
 

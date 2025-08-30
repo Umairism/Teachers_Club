@@ -55,8 +55,10 @@ export function Register() {
         navigate('/dashboard');
       } else {
         toast.error('Registration failed. Please check your invite code and try again.');
+        console.error('Registration failed - check console for details');
       }
-    } catch {
+    } catch (error) {
+      console.error('Registration error caught:', error);
       toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);
