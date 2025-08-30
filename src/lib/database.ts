@@ -734,6 +734,101 @@ export class DatabaseService {
       createdAt: dbReaction.created_at
     };
   }
+
+  // Admin Panel Methods
+  async getReports(): Promise<Report[]> {
+    try {
+      const { data, error } = await supabase.from('reports').select('*').order('created_at', { ascending: false });
+      if (error || !data) return [];
+      return data.map(report => this.mapReportFromDB(report));
+    } catch (error) {
+      console.error('Failed to get reports:', error);
+      return [];
+    }
+  }
+
+  async getAdminLogs(): Promise<AdminLog[]> {
+    try {
+      const { data, error } = await supabase.from('admin_logs').select('*').order('created_at', { ascending: false });
+      if (error || !data) return [];
+      return data.map(log => this.mapAdminLogFromDB(log));
+    } catch (error) {
+      console.error('Failed to get admin logs:', error);
+      return [];
+    }
+  }
+
+  async getDashboardStats(): Promise<any> {
+    try {
+      const [usersCount, articlesCount, confessionsCount, reportsCount] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact' }),
+        supabase.from('articles').select('*', { count: 'exact' }),
+        supabase.from('confessions').select('*', { count: 'exact' }),
+        supabase.from('reports').select('*', { count: 'exact' })
+      ]);
+
+      return {
+        totalUsers: usersCount.count || 0,
+        totalArticles: articlesCount.count || 0,
+        totalConfessions: confessionsCount.count || 0,
+        totalReports: reportsCount.count || 0
+      };
+    } catch (error) {
+      console.error('Failed to get dashboard stats:', error);
+      return {
+        totalUsers: 0,
+        totalArticles: 0,
+        totalConfessions: 0,
+        totalReports: 0
+      };
+    }
+  }
+
+  async resolveReport(reportId: string, adminId: string, action: 'resolved' | 'dismissed'): Promise<void> {
+    try {
+      await supabase.from('reports').update({
+        status: action,
+        resolved_by: adminId,
+        resolved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }).eq('id', reportId);
+
+      // Log the admin action
+      await this.logAdminAction(adminId, `report_${action}`, 'user', reportId, `Report ${action}`);
+    } catch (error) {
+      console.error('Failed to resolve report:', error);
+      throw error;
+    }
+  }
+
+  // Helper methods for mapping database objects
+  private mapReportFromDB(dbReport: any): Report {
+    return {
+      id: dbReport.id,
+      reporterId: dbReport.reporter_id,
+      targetType: dbReport.target_type,
+      targetId: dbReport.target_id,
+      reason: dbReport.reason,
+      description: dbReport.description || '',
+      status: dbReport.status || 'pending',
+      createdAt: dbReport.created_at,
+      updatedAt: dbReport.updated_at,
+      resolvedBy: dbReport.resolved_by,
+      resolvedAt: dbReport.resolved_at
+    };
+  }
+
+  private mapAdminLogFromDB(dbLog: any): AdminLog {
+    return {
+      id: dbLog.id,
+      adminId: dbLog.admin_id,
+      action: dbLog.action,
+      targetType: dbLog.target_type,
+      targetId: dbLog.target_id,
+      details: dbLog.details,
+      createdAt: dbLog.created_at
+    };
+  }
 }
 
 export const db = new DatabaseService();
