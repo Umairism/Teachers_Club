@@ -8,6 +8,18 @@
 [build.environment]
   # Node.js version to use for building
   NODE_VERSION = "18"
+  
+  # Supabase Configuration
+  VITE_SUPABASE_URL = "https://dfhqurxdznbdhhennnkr.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRmaHF1cnhkem5iZGhoZW5ubmtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0NTE2MzEsImV4cCI6MjA3MjAyNzYzMX0.mn5XXgQjxFOrK6sCtcsSzTPgC4D0MDIrMdIJHxpZ4HY"
+  
+  # App Configuration
+  VITE_APP_NAME = "Teachers Club"
+  VITE_APP_VERSION = "1.0.0"
+  VITE_APP_ENVIRONMENT = "production"
+  VITE_ENABLE_REGISTRATION = "true"
+  VITE_REQUIRE_INVITE_CODE = "true"
+  VITE_ENABLE_ANONYMOUS_CONFESSIONS = "true"
 
 # Headers for security and performance
 [[headers]]
