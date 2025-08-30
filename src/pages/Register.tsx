@@ -217,7 +217,7 @@ export function Register() {
             </div>
 
             {/* Development Demo Codes - Only show in development */}
-            {import.meta.env.DEV && (
+            {/* {import.meta.env.DEV && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800 font-medium mb-2">🚧 Development Mode - Demo Invite Codes:</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -235,7 +235,7 @@ export function Register() {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Submit Button */}
             <button

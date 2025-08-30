@@ -101,7 +101,7 @@ export function Login() {
             </div>
 
             {/* Development Demo Credentials - Only show in development */}
-            {import.meta.env.DEV && (
+            {/* {import.meta.env.DEV && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800 font-medium mb-2">🚧 Development Mode - Demo Credentials:</p>
                 <div className="space-y-1 text-sm text-yellow-700">
@@ -111,7 +111,7 @@ export function Login() {
                   <p className="text-xs text-yellow-600 mt-2">Any password will work for demo accounts</p>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Submit Button */}
             <button
