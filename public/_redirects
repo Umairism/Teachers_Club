@@ -1,0 +1,11 @@
+# Netlify redirects file for SPA (Single Page Application)
+# This tells Netlify to serve index.html for all routes that don't match a static file
+# This allows React Router to handle client-side routing properly
+
+/*    /index.html   200
+
+# Optional: Redirect HTTP to HTTPS (if you want to enforce HTTPS)
+# http://teachersclub.netlify.app/* https://teachersclub.netlify.app/:splat 301!
+
+# Optional: Redirect www to non-www (if you have a custom domain)
+# https://www.yourdomain.com/* https://yourdomain.com/:splat 301!
